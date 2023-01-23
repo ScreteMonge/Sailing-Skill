@@ -1,13 +1,13 @@
-package com.example;
+package com.sailingskill;
 
 import net.runelite.client.RuneLite;
 import net.runelite.client.externalplugins.ExternalPluginManager;
 
-public class ExamplePluginTest
+public class SailingTest
 {
 	public static void main(String[] args) throws Exception
 	{
-		ExternalPluginManager.loadBuiltin(ExamplePlugin.class);
+		ExternalPluginManager.loadBuiltin(SailingPlugin.class);
 		RuneLite.main(args);
 	}
 }
