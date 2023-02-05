@@ -1,34 +1,18 @@
 package com.sailingskill.combat;
 
-import com.sailingskill.RotationTranslator;
+import com.sailingskill.BoatMaths;
 
 public class CannonRange
 {
 
     public static int[] getCannonX(int absoluteBoatOrientation)
     {
-        int direction = RotationTranslator.translateOrientation(absoluteBoatOrientation);
+        int direction = BoatMaths.translateOrientation(absoluteBoatOrientation);
         switch (direction)
         {
             default:
             case 0:
             case 1024:
-				/*
-				return new int[]
-						{
-								-5, -4, -3,                  3, 4, 5,
-								-5, -4, -3, -2,           2, 3, 4, 5,
-								-5, -4, -3, -2, -1,    1, 2, 3, 4, 5,
-								-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5,
-								-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5,
-								-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5,
-								-5, -4, -3, -2, -1,    1, 2, 3, 4, 5,
-								-5, -4, -3, -2,           2, 3, 4, 5,
-								-5, -4, -3,                  3, 4, 5
-						};
-
-				 */
-
                 return new int[]
                         {
                                     -4, -3, -2,           2, 3, 4,
@@ -41,24 +25,6 @@ public class CannonRange
                         };
             case 512:
             case 1536:
-				/*
-				return new int[]
-						{
-								    -4, -3, -2, -1, 0, 1, 2, 3, 4,
-							    	-4, -3, -2, -1, 0, 1, 2, 3, 4,
-								    -4, -3, -2, -1, 0, 1, 2, 3, 4,
-								        -3, -2, -1, 0, 1, 2, 3,
-								            -2, -1, 0, 1, 2,
-								                -1, 0, 1,
-								            -2, -1, 0, 1, 2,
-								        -3, -2, -1, 0, 1, 2, 3,
-							    	-4, -3, -2, -1, 0, 1, 2, 3, 4,
-								    -4, -3, -2, -1, 0, 1, 2, 3, 4,
-								    -4, -3, -2, -1, 0, 1, 2, 3, 4,
-						};
-
-				 */
-
                 return new int[]
                         {
                                     -2, -1, 0, 1, 2,
@@ -115,21 +81,6 @@ public class CannonRange
             default:
             case 0:
             case 1024:
-				/*
-				return new int[]
-						{
-								 4,  4,  4,                      4,  4,  4,
-								 3,  3,  3,  3,              3,  3,  3,  3,
-								 2,  2,  2,  2,  2,      2,  2,  2,  2,  2,
-								 1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
-								 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-								-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-								-2, -2, -2, -2, -2,     -2, -2, -2, -2, -2,
-								-3, -3, -3, -3,             -3, -3, -3, -3,
-								-4, -4, -4,                     -4, -4, -4
-						};
-
-				 */
                 return new int[]
                         {
                                      3,  3,  3,              3,  3,  3,
@@ -142,23 +93,6 @@ public class CannonRange
                         };
             case 512:
             case 1536:
-				/*
-				return new int[]
-						{
-							 	     5,  5,  5,  5,  5,  5,  5,  5,  5,
-								     4,  4,  4,  4,  4,  4,  4,  4,  4,
-								     3,  3,  3,  3,  3,  3,  3,  3,  3,
-								         2,  2,  2,  2,  2,  2,  2,
-								             1,  1,  1,  1,  1,
-							  	                 0,  0,  0,
-								            -1, -1, -1, -1, -1,
-								        -2, -2, -2, -2, -2, -2, -2,
-								    -3, -3, -3, -3, -3, -3, -3, -3, -3,
-								    -4, -4, -4, -4, -4, -4, -4, -4, -4,
-								    -5, -5, -5, -5, -5, -5, -5, -5, -5,
-						};
-
-				 */
                 return new int[]
                         {
                                      5,  5,  5,  5,  5,
@@ -192,24 +126,6 @@ public class CannonRange
                                 -4, -4, -4, -4, -4,
                                     -5, -5, -5
                         };
-
-				/*return new int[]
-						{
-								      5, 5, 5,
-								   4, 4, 4, 4, 4,
-								3, 3, 3, 3, 3, 3,
-								2, 2, 2, 2, 2, 2,
-								1,  1,  1,  1,  1,  1,  1,
-							 	    0,  0,  0,  0,  0,  0,  0,  0,  0,
-								               -1, -1, -1, -1, -1, -1, -1,
-								                   -2, -2, -2, -2, -2, -2,
-								                   -3, -3, -3, -3, -3, -3,
-								                   -4, -4, -4, -4, -4,
-								                       -5, -5, -5
-						};
-
-				 */
         }
-
     }
 }

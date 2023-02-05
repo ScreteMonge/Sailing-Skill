@@ -145,10 +145,10 @@ public enum NPCSpawns
     TENTACLE_123(NPCType.KRAKEN_TENTACLE, 2619, 2812),
 
     ;
+
     private final NPCType npcType;
     private final int xLocation;
     private final int yLocation;
-
 
     NPCSpawns(NPCType npcType, int xLocation, int yLocation)
     {

@@ -38,7 +38,24 @@ public class NPCCharacter
     private boolean stationary;
     private boolean regionNPC;
 
-    public NPCCharacter(NPCType npcType, NPCSize npcSize, RuneLiteObject runeLiteObject, Model projectileModel, Animation idleAnimation, Animation walkAnimation, Animation attackAnimation, Animation deathAnimation, int attackAnimFrames, Animation projectileAnimation, int maxHealth, int attackRange, int chaseRange, int maxHit, int attackSpeed, boolean aggressive, boolean stationary, boolean regionNPC)
+    public NPCCharacter(NPCType npcType,
+                        NPCSize npcSize,
+                        RuneLiteObject runeLiteObject,
+                        Model projectileModel,
+                        Animation idleAnimation,
+                        Animation walkAnimation,
+                        Animation attackAnimation,
+                        Animation deathAnimation,
+                        int attackAnimFrames,
+                        Animation projectileAnimation,
+                        int maxHealth,
+                        int attackRange,
+                        int chaseRange,
+                        int maxHit,
+                        int attackSpeed,
+                        boolean aggressive,
+                        boolean stationary,
+                        boolean regionNPC)
     {
         this.npcType = npcType;
         this.runeLiteObject = runeLiteObject;

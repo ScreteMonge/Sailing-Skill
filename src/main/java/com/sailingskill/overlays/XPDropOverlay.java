@@ -16,7 +16,7 @@ public class XPDropOverlay extends Overlay
 {
     private final Client client;
     private final SailingPlugin plugin;
-    BufferedImage skillImage = ImageUtil.loadImageResource(getClass(), "/Sailing_skill_icon.png");
+    BufferedImage skillImage = ImageUtil.loadImageResource(getClass(), "/Skill_Icon.png");
     BufferedImage rangedSkillImage = ImageUtil.loadImageResource(getClass(), "/ranged.png");
     BufferedImage fishingSkillImage = ImageUtil.loadImageResource(getClass(), "/Fishing_icon.png");
 

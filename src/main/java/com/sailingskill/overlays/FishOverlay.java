@@ -82,12 +82,9 @@ public class FishOverlay extends Overlay
                         image = sturgeonImage;
                 }
 
-                //graphics.drawImage(image, 0, 0, null);
                 OverlayUtil.renderImageLocation(graphics, point, image);
             }
         }
-
-
 
         return null;
     }

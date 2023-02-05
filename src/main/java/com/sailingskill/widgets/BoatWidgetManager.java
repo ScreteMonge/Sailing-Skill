@@ -17,41 +17,45 @@ public class BoatWidgetManager
     @Inject
     private SailingPlugin plugin;
 
-    private final BufferedImage wheelFullL0 = ImageUtil.loadImageResource(getClass(), "/Left_Wheel_0.png");
-    private final BufferedImage wheelFullL1 = ImageUtil.loadImageResource(getClass(), "/Left_Wheel_1.png");
-    private final BufferedImage wheelFullL2 = ImageUtil.loadImageResource(getClass(), "/Left_Wheel_2.png");
-    private final BufferedImage wheelFullL3 = ImageUtil.loadImageResource(getClass(), "/Left_Wheel_3.png");
-    private final BufferedImage wheelFullR0 = ImageUtil.loadImageResource(getClass(), "/Right_Wheel_0.png");
-    private final BufferedImage wheelFullR1 = ImageUtil.loadImageResource(getClass(), "/Right_Wheel_1.png");
-    private final BufferedImage wheelFullR2 = ImageUtil.loadImageResource(getClass(), "/Right_Wheel_2.png");
-    private final BufferedImage wheelFullR3 = ImageUtil.loadImageResource(getClass(), "/Right_Wheel_3.png");
-    private final BufferedImage anchorImage = ImageUtil.loadImageResource(getClass(), "/Wheel_Anchor.png");
-    private final BufferedImage anchorPressedImage = ImageUtil.loadImageResource(getClass(), "/Wheel_Anchor_Pressed.png");
-    private final BufferedImage wheelHeadImage = ImageUtil.loadImageResource(getClass(), "/Wheel_Head.png");
+    private final BufferedImage wheelLeftUnpressed = ImageUtil.loadImageResource(getClass(), "/Wheel_Left_Unpressed.png");
+    private final BufferedImage wheelLeftPressed = ImageUtil.loadImageResource(getClass(), "/Wheel_Left_Pressed.png");
+    private final BufferedImage wheelRightUnpressed = ImageUtil.loadImageResource(getClass(), "/Wheel_Right_Unpressed.png");
+    private final BufferedImage wheelRightPressed = ImageUtil.loadImageResource(getClass(), "/Wheel_Right_Pressed.png");
+    private final BufferedImage anchorPressed = ImageUtil.loadImageResource(getClass(), "/Anchor_Pressed.png");
+    private final BufferedImage anchorUnpressed = ImageUtil.loadImageResource(getClass(), "/Anchor_Unpressed.png");
+    private final BufferedImage speed1Unpressed = ImageUtil.loadImageResource(getClass(), "/Speed_1_Unpressed.png");
+    private final BufferedImage speed1Pressed = ImageUtil.loadImageResource(getClass(), "/Speed_1_Pressed.png");
+    private final BufferedImage speed2Unpressed = ImageUtil.loadImageResource(getClass(), "/Speed_2_Unpressed.png");
+    private final BufferedImage speed2Pressed = ImageUtil.loadImageResource(getClass(), "/Speed_2_Pressed.png");
+    private final BufferedImage speed3Unpressed = ImageUtil.loadImageResource(getClass(), "/Speed_3_Unpressed.png");
+    private final BufferedImage speed3Pressed = ImageUtil.loadImageResource(getClass(), "/Speed_3_Pressed.png");
 
     private Widget parent;
-    @Getter
-    private static Widget wheelRightWidget;
-    @Getter
-    private static Widget wheelLeftWidget;
+    private Widget wheelRightWidget;
+    private Widget wheelLeftWidget;
     private Widget anchorWidget;
-    private Widget headWidget;
-    private Widget headShadowWidget;
+    @Getter
+    private Widget speed1Widget;
+    @Getter
+    private Widget speed2Widget;
+    @Getter
+    private Widget speed3Widget;
 
-    private final int LEFT_0_SPRITE_ID = SpriteID.MOBILE_YELLOW_TOUCH_ANIMATION_1;
-    private final int LEFT_1_SPRITE_ID = SpriteID.MOBILE_TUTORIAL_FUNCTION_MODE_BUTTON;
-    private final int LEFT_2_SPRITE_ID = SpriteID.MOBILE_TUTORIAL_MINIMISE_WORLD_MAP;
-    private final int LEFT_3_SPRITE_ID = SpriteID.MOBILE_TUTORIAL_GESTURES_TAP_AND_PRESS;
-    private final int RIGHT_0_SPRITE_ID = SpriteID.MOBILE_YELLOW_TOUCH_ANIMATION_2;
-    private final int RIGHT_1_SPRITE_ID = SpriteID.MOBILE_TUTORIAL_NPC_GESTURE_PRESS;
-    private final int RIGHT_2_SPRITE_ID = SpriteID.MOBILE_TUTORIAL_NPC_GESTURE_TAP;
-    private final int RIGHT_3_SPRITE_ID = SpriteID.MOBILE_TUTORIAL_CAMERA_MOVEMENT;
-    private final int ANCHOR_SPRITE_ID = SpriteID.MOBILE_FUNCTION_MODE_DISABLED;
-    private final int ANCHOR_PRESSED_SPRITE_ID = SpriteID.ABLEGAMERS_PROMO_BANNER;
-    private final int HEAD_SPRITE_ID = SpriteID.MOBILE_FUNCTION_MODE_ENABLED;
+    private final int SPEED_1_PRESSED_ID = SpriteID.MOBILE_YELLOW_TOUCH_ANIMATION_1;
+    private final int SPEED_1_UNPRESSED_ID = SpriteID.MOBILE_TUTORIAL_FUNCTION_MODE_BUTTON;
+    private final int SPEED_2_PRESSED_ID = SpriteID.HEALTHBAR_CYAN_BACK_30PX;
+    private final int SPEED_2_UNPRESSED_ID = SpriteID.HEALTHBAR_CYAN_BACK_40PX;
+    private final int SPEED_3_PRESSED_ID = SpriteID.HEALTHBAR_CYAN_BACK_50PX;
+    private final int SPEED_3_UNPRESSED_ID = SpriteID.HEALTHBAR_CYAN_BACK_60PX;
+    private final int WHEEL_LEFT_UNPRESSED_ID = SpriteID.MOBILE_TUTORIAL_MINIMISE_WORLD_MAP;
+    private final int WHEEL_LEFT_PRESSED_ID = SpriteID.HEALTHBAR_CYAN_BACK_70PX;
+    private final int WHEEL_RIGHT_UNPRESSED_ID = SpriteID.MOBILE_YELLOW_TOUCH_ANIMATION_2;
+    private final int WHEEL_RIGHT_PRESSED_ID = SpriteID.HEALTHBAR_CYAN_BACK_80PX;
+    private final int ANCHOR_UNPRESSED_ID = SpriteID.MOBILE_FUNCTION_MODE_DISABLED;
+    private final int ANCHOR_PRESSED_ID = SpriteID.ABLEGAMERS_PROMO_BANNER;
 
     private final int HOVERED_OPACITY = 125;
-    private final int BASE_Y = 10;
+    private final int BASE_Y = -25;
 
     public void setParent(Widget parentWidget)
     {
@@ -61,11 +65,11 @@ public class BoatWidgetManager
     public void createWidgets()
     {
         wheelLeftWidget = parent.createChild(1, WidgetType.GRAPHIC);
-        wheelLeftWidget.setPos(-35, BASE_Y - 19, 1, 1);
-        wheelLeftWidget.setSize(71, 66);
-        wheelLeftWidget.setOriginalHeight(66);
-        wheelLeftWidget.setOriginalWidth(71);
-        wheelLeftWidget.setSpriteId(LEFT_0_SPRITE_ID);
+        wheelLeftWidget.setPos(-50, BASE_Y - 37, 1, 1);
+        wheelLeftWidget.setSize(53, 88);
+        wheelLeftWidget.setOriginalHeight(88);
+        wheelLeftWidget.setOriginalWidth(53);
+        wheelLeftWidget.setSpriteId(WHEEL_LEFT_UNPRESSED_ID);
         wheelLeftWidget.revalidate();
         wheelLeftWidget.setHasListener(true);
         wheelLeftWidget.setOnMouseRepeatListener((JavaScriptCallback) this::wheelLeftHoverEvent);
@@ -73,13 +77,12 @@ public class BoatWidgetManager
         wheelLeftWidget.setOnOpListener((JavaScriptCallback) this::wheelLeftClickEvent);
         wheelLeftWidget.setAction(0, "Rotate left");
 
-
         wheelRightWidget = parent.createChild(2, WidgetType.GRAPHIC);
-        wheelRightWidget.setPos(36, BASE_Y - 19, 1, 1);
-        wheelRightWidget.setSize(71, 66);
-        wheelRightWidget.setOriginalHeight(66);
-        wheelRightWidget.setOriginalWidth(71);
-        wheelRightWidget.setSpriteId(RIGHT_0_SPRITE_ID);
+        wheelRightWidget.setPos(51, BASE_Y - 37, 1, 1);
+        wheelRightWidget.setSize(53, 88);
+        wheelRightWidget.setOriginalHeight(88);
+        wheelRightWidget.setOriginalWidth(53);
+        wheelRightWidget.setSpriteId(WHEEL_RIGHT_UNPRESSED_ID);
         wheelRightWidget.revalidate();
         wheelRightWidget.setHasListener(true);
         wheelRightWidget.setOnMouseRepeatListener((JavaScriptCallback) this::wheelRightHoverEvent);
@@ -87,13 +90,12 @@ public class BoatWidgetManager
         wheelRightWidget.setOnOpListener((JavaScriptCallback) this::wheelRightClickEvent);
         wheelRightWidget.setAction(0, "Rotate right");
 
-
         anchorWidget = parent.createChild(3, WidgetType.GRAPHIC);
         anchorWidget.setPos(0, BASE_Y, 1, 1);
-        anchorWidget.setSize(36, 36);
-        anchorWidget.setOriginalHeight(36);
-        anchorWidget.setOriginalWidth(36);
-        anchorWidget.setSpriteId(ANCHOR_PRESSED_SPRITE_ID);
+        anchorWidget.setSize(40, 26);
+        anchorWidget.setOriginalHeight(26);
+        anchorWidget.setOriginalWidth(40);
+        anchorWidget.setSpriteId(ANCHOR_PRESSED_ID);
         anchorWidget.revalidate();
         anchorWidget.setNoClickThrough(true);
         anchorWidget.setHasListener(true);
@@ -103,38 +105,72 @@ public class BoatWidgetManager
         anchorWidget.setOnMouseLeaveListener((JavaScriptCallback) this::anchorLeaveEvent);
         anchorWidget.setAction(0, "Toggle anchor");
 
+        speed1Widget = parent.createChild(4, WidgetType.GRAPHIC);
+        speed1Widget.setPos(0, BASE_Y - 25, 1, 1);
+        speed1Widget.setSize(40, 26);
+        speed1Widget.setOriginalHeight(26);
+        speed1Widget.setOriginalWidth(40);
+        speed1Widget.setSpriteId(SPEED_1_PRESSED_ID);
+        speed1Widget.revalidate();
+        speed1Widget.setHasListener(true);
+        speed1Widget.setOnOpListener((JavaScriptCallback) this::speed1ClickEvent);
+        speed1Widget.setOnMouseOverListener((JavaScriptCallback) this::speed1HoverEvent);
+        speed1Widget.setOnMouseLeaveListener((JavaScriptCallback) this::speed1LeaveEvent);
+        speed1Widget.setAction(0, "Sail speed 1");
 
-        headShadowWidget = parent.createChild(4, WidgetType.GRAPHIC);
-        headShadowWidget.setPos(0, BASE_Y - 44, 1, 1);
-        headShadowWidget.setSize(36, 53);
-        headShadowWidget.setOriginalHeight(53);
-        headShadowWidget.setOriginalWidth(36);
-        headShadowWidget.setSpriteId(HEAD_SPRITE_ID);
-        headShadowWidget.setOpacity(50);
-        headShadowWidget.revalidate();
-        headShadowWidget.setNoClickThrough(true);
+        speed2Widget = parent.createChild(5, WidgetType.GRAPHIC);
+        speed2Widget.setPos(0, BASE_Y - 50, 1, 1);
+        speed2Widget.setSize(40, 26);
+        speed2Widget.setOriginalHeight(26);
+        speed2Widget.setOriginalWidth(40);
+        speed2Widget.setSpriteId(SPEED_2_UNPRESSED_ID);
+        speed2Widget.revalidate();
+        speed2Widget.setHasListener(true);
+        speed2Widget.setOnOpListener((JavaScriptCallback) this::speed2ClickEvent);
+        speed2Widget.setOnMouseOverListener((JavaScriptCallback) this::speed2HoverEvent);
+        speed2Widget.setOnMouseLeaveListener((JavaScriptCallback) this::speed2LeaveEvent);
+        speed2Widget.setAction(0, "Sail speed 2");
 
-
-        headWidget = parent.createChild(5, WidgetType.GRAPHIC);
-        headWidget.setPos(0, BASE_Y - 44, 1, 1);
-        headWidget.setSize(36, 53);
-        headWidget.setOriginalHeight(53);
-        headWidget.setOriginalWidth(36);
-        headWidget.setSpriteId(HEAD_SPRITE_ID);
-        headWidget.revalidate();
-        headWidget.setNoClickThrough(true);
-        headWidget.setAction(0, "Stop rotation");
-        headWidget.setAction(1, "Drag rotation");
-        headWidget.setHasListener(true);
-        headWidget.setDragParent(parent);
-        headWidget.setDragDeadTime(0);
-        headWidget.setDragDeadZone(0);
-        headWidget.setOnOpListener((JavaScriptCallback) this::headOpEvent);
-        headWidget.setOnDragCompleteListener((JavaScriptCallback) this::headDragCompleteEvent);
-        headWidget.setOnDragListener((JavaScriptCallback) this::headDragEvent);
-        headWidget.setOnMouseOverListener((JavaScriptCallback) this::headHoverEvent);
-        headWidget.setOnMouseLeaveListener((JavaScriptCallback) this::headLeaveEvent);
+        speed3Widget = parent.createChild(6, WidgetType.GRAPHIC);
+        speed3Widget.setPos(0, BASE_Y - 75, 1, 1);
+        speed3Widget.setSize(40, 26);
+        speed3Widget.setOriginalHeight(26);
+        speed3Widget.setOriginalWidth(40);
+        speed3Widget.setSpriteId(SPEED_3_UNPRESSED_ID);
+        speed3Widget.revalidate();
+        speed3Widget.setHasListener(true);
+        speed3Widget.setOnOpListener((JavaScriptCallback) this::speed3ClickEvent);
+        speed3Widget.setOnMouseOverListener((JavaScriptCallback) this::speed3HoverEvent);
+        speed3Widget.setOnMouseLeaveListener((JavaScriptCallback) this::speed3LeaveEvent);
+        speed3Widget.setAction(0, "Sail speed 3");
     }
+
+    public void speed1ClickEvent(ScriptEvent e)
+    {
+        plugin.setSailLength(1);
+    }
+
+    public void speed1HoverEvent(ScriptEvent e) {speed1Widget.setOpacity(HOVERED_OPACITY); }
+
+    public void speed1LeaveEvent(ScriptEvent e) {speed1Widget.setOpacity(0); }
+
+    public void speed2ClickEvent(ScriptEvent e)
+    {
+        plugin.setSailLength(2);
+    }
+
+    public void speed2HoverEvent(ScriptEvent e) {speed2Widget.setOpacity(HOVERED_OPACITY); }
+
+    public void speed2LeaveEvent(ScriptEvent e) {speed2Widget.setOpacity(0); }
+
+    public void speed3ClickEvent(ScriptEvent e)
+    {
+        plugin.setSailLength(3);
+    }
+
+    public void speed3HoverEvent(ScriptEvent e) {speed3Widget.setOpacity(HOVERED_OPACITY); }
+
+    public void speed3LeaveEvent(ScriptEvent e) {speed3Widget.setOpacity(0); }
 
     public void wheelLeftClickEvent(ScriptEvent e)
     {
@@ -168,15 +204,12 @@ public class BoatWidgetManager
 
     public void anchorOpEvent(ScriptEvent e)
     {
-        plugin.setAnchorMode(!plugin.isAnchorMode());
-        anchorWidget.setSpriteId(plugin.isAnchorMode() ? ANCHOR_PRESSED_SPRITE_ID : ANCHOR_SPRITE_ID);
+        plugin.setSailLength(0);
     }
 
     public void anchorHoverEvent(ScriptEvent e)
     {
         anchorWidget.setOpacity(HOVERED_OPACITY);
-        wheelRightWidget.setOpacity(0);
-        wheelLeftWidget.setOpacity(0);
     }
 
     public void anchorLeaveEvent(ScriptEvent e)
@@ -186,242 +219,98 @@ public class BoatWidgetManager
 
     public void anchorOnClientTick(ScriptEvent e)
     {
-        if (plugin.isAnchorMode())
-        {
-            anchorWidget.setSpriteId(ANCHOR_PRESSED_SPRITE_ID);
-        }
-        else
-        {
-            anchorWidget.setSpriteId(ANCHOR_SPRITE_ID);
-        }
+        updateSailLengthSprite(plugin.getSailLength());
+        updateBoatRotationSprite();
     }
 
-    public void newHeadDragEvent(ScriptEvent e)
+    public void updateBoatRotationSprite()
     {
-        if (plugin.getShipObject() == null)
+        int rotationQueue = plugin.getBoatRotationQueue();
+        if (rotationQueue > 0)
         {
+            wheelLeftWidget.setSpriteId(WHEEL_LEFT_UNPRESSED_ID);
+            wheelRightWidget.setSpriteId(WHEEL_RIGHT_PRESSED_ID);
             return;
         }
 
-        wheelLeftWidget.setOpacity(0);
-        wheelRightWidget.setOpacity(0);
-        headWidget.setOpacity(HOVERED_OPACITY);
-
-        int movementSpace = parent.getWidth() - headWidget.getWidth();
-        int midline = movementSpace / 2;
-        int deadZone = 30;
-
-        int x = e.getMouseX();
-
-        if (x > midline - deadZone && x < midline + deadZone)
+        if (rotationQueue < 0)
         {
-            wheelLeftWidget.setSpriteId(LEFT_0_SPRITE_ID);
-            wheelRightWidget.setSpriteId(RIGHT_0_SPRITE_ID);
-            plugin.setBoatRotationQueue(0);
-        }
-        else if (x < midline - deadZone)
-        {
-            wheelLeftWidget.setSpriteId(LEFT_3_SPRITE_ID);
-            plugin.rotateBoatCCW();
-        }
-        else if (x > midline + deadZone)
-        {
-            wheelRightWidget.setSpriteId(RIGHT_3_SPRITE_ID);
-            plugin.rotateBoatCW();
-        }
-    }
-
-    public void newHeadDragCompleteEvent(ScriptEvent e)
-    {
-        if (plugin.getShipObject() == null)
-        {
+            wheelLeftWidget.setSpriteId(WHEEL_LEFT_PRESSED_ID);
+            wheelRightWidget.setSpriteId(WHEEL_RIGHT_UNPRESSED_ID);
             return;
         }
 
-        wheelLeftWidget.setSpriteId(LEFT_0_SPRITE_ID);
-        wheelRightWidget.setSpriteId(RIGHT_0_SPRITE_ID);
-        headWidget.setOpacity(0);
-
-        plugin.setBoatRotationQueue(0);
+        wheelLeftWidget.setSpriteId(WHEEL_LEFT_UNPRESSED_ID);
+        wheelRightWidget.setSpriteId(WHEEL_RIGHT_UNPRESSED_ID);
     }
 
-    public void headDragEvent(ScriptEvent e)
+    public void updateSailLengthSprite(int sailLength)
     {
-        if (plugin.getShipObject() == null)
+        switch (sailLength)
         {
-            return;
-        }
-
-        wheelLeftWidget.setOpacity(0);
-        wheelRightWidget.setOpacity(0);
-        headWidget.setOpacity(HOVERED_OPACITY);
-
-        int movementSpace = parent.getWidth() - headWidget.getWidth();
-        int midline = movementSpace / 2;
-        int deadZone = 5;
-        int singleMove = movementSpace / 4;
-
-        int x = e.getMouseX();
-
-        if (x > midline - deadZone && x < midline + deadZone)
-        {
-            wheelLeftWidget.setSpriteId(LEFT_0_SPRITE_ID);
-            wheelRightWidget.setSpriteId(RIGHT_0_SPRITE_ID);
-        }
-        else if (x < midline - deadZone)
-        {
-            if (x == 0)
-            {
-                wheelLeftWidget.setSpriteId(LEFT_3_SPRITE_ID);
-                wheelRightWidget.setSpriteId(RIGHT_0_SPRITE_ID);
-            }
-            else if (x > midline - singleMove)
-            {
-                wheelLeftWidget.setSpriteId(LEFT_1_SPRITE_ID);
-                wheelRightWidget.setSpriteId(RIGHT_0_SPRITE_ID);
-            }
-            else
-            {
-                wheelLeftWidget.setSpriteId(LEFT_2_SPRITE_ID);
-                wheelRightWidget.setSpriteId(RIGHT_0_SPRITE_ID);
-            }
-        }
-        else if (x > midline + deadZone)
-        {
-            if (x == movementSpace)
-            {
-                wheelRightWidget.setSpriteId(RIGHT_3_SPRITE_ID);
-                wheelLeftWidget.setSpriteId(LEFT_0_SPRITE_ID);
-            }
-            else if (x < midline + singleMove)
-            {
-                wheelRightWidget.setSpriteId(RIGHT_1_SPRITE_ID);
-                wheelLeftWidget.setSpriteId(LEFT_0_SPRITE_ID);
-            }
-            else
-            {
-                wheelRightWidget.setSpriteId(RIGHT_2_SPRITE_ID);
-                wheelLeftWidget.setSpriteId(LEFT_0_SPRITE_ID);
-            }
-        }
-    }
-
-    public void headDragCompleteEvent(ScriptEvent e)
-    {
-        if (plugin.getShipObject() == null)
-        {
-            return;
-        }
-
-        wheelLeftWidget.setSpriteId(LEFT_0_SPRITE_ID);
-        wheelRightWidget.setSpriteId(RIGHT_0_SPRITE_ID);
-        headWidget.setOpacity(0);
-
-        int movementSpace = parent.getWidth() - headWidget.getWidth();
-        int midline = movementSpace / 2;
-        int deadZone = 5;
-        int singleMove = movementSpace / 4;
-
-        int x = e.getMouseX();
-
-
-        if (x > midline - deadZone && x < midline + deadZone)
-        {
-            return;
-        }
-        else if (x < midline - deadZone)
-        {
-            if (x == 0)
-            {
-                plugin.setBoatRotationQueue(-3);
-            }
-            else if (x > midline - singleMove)
-            {
-                plugin.setBoatRotationQueue(-1);
-            }
-            else
-            {
-                plugin.setBoatRotationQueue(-2);
-            }
-        }
-        else if (x > midline + deadZone)
-        {
-            if (x == movementSpace)
-            {
-                plugin.setBoatRotationQueue(3);
-            }
-            else if (x < midline + singleMove)
-            {
-                plugin.setBoatRotationQueue(1);
-            }
-            else
-            {
-                plugin.setBoatRotationQueue(2);
-            }
-        }
-    }
-
-    public void headHoverEvent(ScriptEvent e)
-    {
-        headWidget.setOpacity(HOVERED_OPACITY);
-        headShadowWidget.setHidden(true);
-        wheelRightWidget.setOpacity(0);
-        wheelLeftWidget.setOpacity(0);
-    }
-
-    public void headLeaveEvent(ScriptEvent e)
-    {
-        headShadowWidget.setHidden(false);
-        headWidget.setOpacity(0);
-    }
-
-    public void headOpEvent(ScriptEvent e)
-    {
-        if (e.getOp() == 1)
-        {
-            plugin.setBoatRotationQueue(0);
-        }
-
-        if (e.getOp() == 2)
-        {
-            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "player", "Drag this widget to queue rotations.", "game");
+            case 0:
+                speed1Widget.setSpriteId(SPEED_1_UNPRESSED_ID);
+                speed2Widget.setSpriteId(SPEED_2_UNPRESSED_ID);
+                speed3Widget.setSpriteId(SPEED_3_UNPRESSED_ID);
+                anchorWidget.setSpriteId(ANCHOR_PRESSED_ID);
+                return;
+            case 1:
+                speed1Widget.setSpriteId(SPEED_1_PRESSED_ID);
+                speed2Widget.setSpriteId(SPEED_2_UNPRESSED_ID);
+                speed3Widget.setSpriteId(SPEED_3_UNPRESSED_ID);
+                anchorWidget.setSpriteId(ANCHOR_UNPRESSED_ID);
+                return;
+            case 2:
+                speed1Widget.setSpriteId(SPEED_1_UNPRESSED_ID);
+                speed2Widget.setSpriteId(SPEED_2_PRESSED_ID);
+                speed3Widget.setSpriteId(SPEED_3_UNPRESSED_ID);
+                anchorWidget.setSpriteId(ANCHOR_UNPRESSED_ID);
+                return;
+            case 3:
+                speed1Widget.setSpriteId(SPEED_1_UNPRESSED_ID);
+                speed2Widget.setSpriteId(SPEED_2_UNPRESSED_ID);
+                speed3Widget.setSpriteId(SPEED_3_PRESSED_ID);
+                anchorWidget.setSpriteId(ANCHOR_UNPRESSED_ID);
         }
     }
 
     public void setWheelSprite()
     {
-        SpritePixels wheelFullL0Sprite = ImageUtil.getImageSpritePixels(wheelFullL0, client);
-        client.getSpriteOverrides().put(LEFT_0_SPRITE_ID, wheelFullL0Sprite);
+        SpritePixels sp1 = ImageUtil.getImageSpritePixels(speed1Unpressed, client);
+        client.getSpriteOverrides().put(SPEED_1_UNPRESSED_ID, sp1);
 
-        SpritePixels wheelFullL1Sprite = ImageUtil.getImageSpritePixels(wheelFullL1, client);
-        client.getSpriteOverrides().put(LEFT_1_SPRITE_ID, wheelFullL1Sprite);
+        SpritePixels sp2 = ImageUtil.getImageSpritePixels(speed1Pressed, client);
+        client.getSpriteOverrides().put(SPEED_1_PRESSED_ID, sp2);
 
-        SpritePixels wheelFullL2Sprite = ImageUtil.getImageSpritePixels(wheelFullL2, client);
-        client.getSpriteOverrides().put(LEFT_2_SPRITE_ID, wheelFullL2Sprite);
+        SpritePixels sp3 = ImageUtil.getImageSpritePixels(speed2Unpressed, client);
+        client.getSpriteOverrides().put(SPEED_2_UNPRESSED_ID, sp3);
 
-        SpritePixels wheelFullL3Sprite = ImageUtil.getImageSpritePixels(wheelFullL3, client);
-        client.getSpriteOverrides().put(LEFT_3_SPRITE_ID, wheelFullL3Sprite);
+        SpritePixels sp4 = ImageUtil.getImageSpritePixels(speed2Pressed, client);
+        client.getSpriteOverrides().put(SPEED_2_PRESSED_ID, sp4);
 
-        SpritePixels wheelFullR0Sprite = ImageUtil.getImageSpritePixels(wheelFullR0, client);
-        client.getSpriteOverrides().put(RIGHT_0_SPRITE_ID, wheelFullR0Sprite);
+        SpritePixels sp5 = ImageUtil.getImageSpritePixels(speed3Unpressed, client);
+        client.getSpriteOverrides().put(SPEED_3_UNPRESSED_ID, sp5);
 
-        SpritePixels wheelFullR1Sprite = ImageUtil.getImageSpritePixels(wheelFullR1, client);
-        client.getSpriteOverrides().put(RIGHT_1_SPRITE_ID, wheelFullR1Sprite);
+        SpritePixels sp6 = ImageUtil.getImageSpritePixels(speed3Pressed, client);
+        client.getSpriteOverrides().put(SPEED_3_PRESSED_ID, sp6);
 
-        SpritePixels wheelFullR2Sprite = ImageUtil.getImageSpritePixels(wheelFullR2, client);
-        client.getSpriteOverrides().put(RIGHT_2_SPRITE_ID, wheelFullR2Sprite);
+        SpritePixels sp7 = ImageUtil.getImageSpritePixels(wheelLeftUnpressed, client);
+        client.getSpriteOverrides().put(WHEEL_LEFT_UNPRESSED_ID, sp7);
 
-        SpritePixels wheelFullR3Sprite = ImageUtil.getImageSpritePixels(wheelFullR3, client);
-        client.getSpriteOverrides().put(RIGHT_3_SPRITE_ID, wheelFullR3Sprite);
+        SpritePixels sp8 = ImageUtil.getImageSpritePixels(wheelRightUnpressed, client);
+        client.getSpriteOverrides().put(WHEEL_RIGHT_UNPRESSED_ID, sp8);
 
-        SpritePixels anchorSprite = ImageUtil.getImageSpritePixels(anchorImage, client);
-        client.getSpriteOverrides().put(ANCHOR_SPRITE_ID, anchorSprite);
+        SpritePixels sp9 = ImageUtil.getImageSpritePixels(wheelLeftPressed, client);
+        client.getSpriteOverrides().put(WHEEL_LEFT_PRESSED_ID, sp9);
 
-        SpritePixels anchorPressedSprite = ImageUtil.getImageSpritePixels(anchorPressedImage, client);
-        client.getSpriteOverrides().put(ANCHOR_PRESSED_SPRITE_ID, anchorPressedSprite);
+        SpritePixels sp10 = ImageUtil.getImageSpritePixels(wheelRightPressed, client);
+        client.getSpriteOverrides().put(WHEEL_RIGHT_PRESSED_ID, sp10);
 
-        SpritePixels wheelHead = ImageUtil.getImageSpritePixels(wheelHeadImage, client);
-        client.getSpriteOverrides().put(HEAD_SPRITE_ID, wheelHead);
+        SpritePixels anchorSprite = ImageUtil.getImageSpritePixels(anchorUnpressed, client);
+        client.getSpriteOverrides().put(ANCHOR_UNPRESSED_ID, anchorSprite);
+
+        SpritePixels anchorPressedSprite = ImageUtil.getImageSpritePixels(anchorPressed, client);
+        client.getSpriteOverrides().put(ANCHOR_PRESSED_ID, anchorPressedSprite);
     }
 
     public void setupManager(Widget parent)
@@ -430,5 +319,4 @@ public class BoatWidgetManager
         setWheelSprite();
         createWidgets();
     }
-
 }

@@ -80,7 +80,7 @@ public interface SailingConfig extends Config
 	)
 	default String turnLeftHotkey()
 	{
-		return "q";
+		return "a";
 	}
 
 	@ConfigItem(
@@ -91,28 +91,28 @@ public interface SailingConfig extends Config
 	)
 	default String turnRightHotkey()
 	{
-		return "e";
+		return "d";
 	}
 
 	@ConfigItem(
-			keyName = "sailLeftHotkey",
-			name = "Sail Left Hotkey",
-			description = "The hotkey for turning your sail left if Keyboard Control is toggled on",
+			keyName = "sailIncreaseHotkey",
+			name = "Sail Increase Hotkey",
+			description = "The hotkey for increasing your sail length (speed) if Keyboard Control is toggled on",
 			position = 8
 	)
-	default String sailLeftHotkey()
+	default String sailIncreaseHotkey()
 	{
-		return "1";
+		return "w";
 	}
 
 	@ConfigItem(
-			keyName = "sailRightHotkey",
-			name = "Sail Right Hotkey",
-			description = "The hotkey for turning your sail right if Keyboard Control is toggled on",
+			keyName = "sailDecreaseHotkey",
+			name = "Sail Decrease Hotkey",
+			description = "The hotkey for decreasing your sail length (speed) if Keyboard Control is toggled on",
 			position = 9
 	)
-	default String sailRightHotkey()
+	default String sailDecreaseHotkey()
 	{
-		return "3";
+		return "s";
 	}
 }

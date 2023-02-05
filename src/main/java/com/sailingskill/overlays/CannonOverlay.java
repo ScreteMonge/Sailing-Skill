@@ -14,14 +14,12 @@ import java.awt.*;
 public class CannonOverlay extends Overlay
 {
     private final Client client;
-    private final SailingConfig config;
     private final SailingPlugin plugin;
 
 
     @Inject
     private CannonOverlay(Client client, SailingConfig config, SailingPlugin plugin) {
         this.client = client;
-        this.config = config;
         this.plugin = plugin;
         setPosition(OverlayPosition.DYNAMIC);
         setLayer(OverlayLayer.ABOVE_SCENE);

@@ -41,7 +41,7 @@ import java.util.Random;
 @Getter
 @Setter
 @PluginDescriptor(
-	name = "0Sailing",
+	name = "Sailing",
 	description = "Allows you to test some basic mechanics of a Sailing skill",
 	tags = {"sailing", "skill", "game mode", "gamemode"}
 )
@@ -97,10 +97,10 @@ public class SailingPlugin extends Plugin implements KeyListener
 	private int currentNPCSpawns = -1;
 	private boolean modelsLoaded;
 	private Model shipModel0;
-	private Model shipModelP45;
-	private Model shipModelP90;
 	private Model shipModelN45;
 	private Model shipModelN90;
+	private Model shipModelP45;
+	private Model shipModelP90;
 	private Tile lastSelectedTile;
 
 	private RuneLiteObject shipObject;
@@ -118,21 +118,16 @@ public class SailingPlugin extends Plugin implements KeyListener
 	private int speed = 1;
 	private int boatMomentum = 0;
 	private int windDirection = 0;
-	private int relativeSailOrientation = 0;
-	private int absoluteSailOrientation;
 	private int absoluteBoatOrientation;
 	private int sailLength;
 	private int boatRotationQueue = 0;
-	private int sailRotationQueue = 0;
 	private int sailLengthQueue = 0;
-	private int sailTimer = 0;
-	private int sailErrorTimer = 0;
-	private int sailOptionTimer = 0;
 	private int windChangeTimer = 0;
 	private int healthBarTimer = 0;
 	private int currentHealth = 0;
 	private int maxHealth = 0;
 	private boolean deathState = false;
+	private BoatTool currentBoatTool = BoatTool.CANNON;
 	private int xpDropAccumulator = 0;
 	private final int WATER_OVERLAY_ID = 6;
 	private final int REGION_PIRATES_COVE = 5;
@@ -175,28 +170,10 @@ public class SailingPlugin extends Plugin implements KeyListener
 		overlayManager.remove(xpDropOverlay);
 		overlayManager.remove(fishOverlay);
 		clientThread.invoke(this::despawnBoat);
-		clientThread.invoke(this::clearTrials);
+		clientThread.invoke(this::clearTrialSet);
 		currentTrial = 0;
+		currentNPCSpawns = 0;
 		keyManager.unregisterKeyListener(this);
-	}
-
-	@Subscribe
-	public void onMenuOpened(MenuOpened event)
-	{
-		if (event.getFirstEntry().getType().equals(MenuAction.WALK))
-		{
-			setWaterTileRightClick();
-		}
-	}
-
-	@Subscribe
-	public void onChatMessage(ChatMessage event)
-	{
-		String message = event.getMessage();
-		if (message.startsWith("Reset"))
-		{
-			buildBoat();
-		}
 	}
 
 	@Subscribe
@@ -253,7 +230,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 			finalSpeed++;
 		}
 
-		int orientation = RotationTranslator.translateOrientation(absoluteBoatOrientation);
+		int orientation = BoatMaths.translateOrientation(absoluteBoatOrientation);
 		int currentSceneX = shipObject.getLocation().getSceneX();
 		int currentSceneY = shipObject.getLocation().getSceneY();
 
@@ -271,54 +248,310 @@ public class SailingPlugin extends Plugin implements KeyListener
 			int modifierX = getXMovement(orientation);
 			int modifierZ = getYMovement(orientation);
 			LocalPoint localPoint = LocalPoint.fromScene(currentSceneX + modifierX, currentSceneY + modifierZ);
-			shipObject.setLocation(localPoint, client.getPlane());
+			shipObject.setLocation(localPoint, 0);
 		}
 
 		xpDropAccumulator++;
+	}
 
-/*
-
-		if (client.getGameCycle() % 2 == 0)
+	/*
+	Updates the position of each active projectile to close in on its target
+	If the projectile is close enough to its target, set a hitsplat and healthbar to appear
+	If the damage is greater than health remaining, set the target's death state
+	*/
+	public void updateProjectilePosition()
+	{
+		for (int i = 0; i < activeProjectiles.size(); i++)
 		{
-			int orientation = RotationTranslator.translateOrientation(absoluteBoatOrientation);
-			int currentX = shipObject.getLocation().getX();
-			int currentZ = shipObject.getLocation().getY();
+			Projectile projectile = activeProjectiles.get(i);
+			projectile.setTimer(projectile.getTimer() + 1);
+			RuneLiteObject projectileObject = projectile.getProjectile();
 
-			int modifierX = getXMovement(orientation) * speed * 128 / 15;
-			int modifierZ = getZMovement(orientation) * speed * 128 / 15;
+			if (projectileObject == null)
+			{
+				continue;
+			}
 
-			int combinedX = modifierX + currentX;
-			int combinedZ = modifierZ + currentZ;
+			if (projectile.isTargetsPlayer())
+			{
+				int currentProjectileX = projectileObject.getLocation().getX();
+				int currentProjectileY = projectileObject.getLocation().getY();
 
-			LocalPoint localPoint = new LocalPoint(combinedX, combinedZ);
-			shipObject.setLocation(localPoint, client.getPlane());
+				int boatX = shipObject.getLocation().getX();
+				int boatY = shipObject.getLocation().getY();
+
+				int xDifference = boatX - currentProjectileX;
+				int yDifference = boatY - currentProjectileY;
+
+				if (Math.abs(xDifference) < PROJECTILE_HIT_RANGE && Math.abs(yDifference) < PROJECTILE_HIT_RANGE)
+				{
+					projectileObject.setActive(false);
+					activeProjectiles.remove(projectile);
+
+					if (deathState)
+					{
+						continue;
+					}
+
+					int damageRoll = random.nextInt(projectile.getMaxHit()) + 1;
+					double speedDefenseMod = (double) (speed - 1) / 10;
+					damageRoll -= (int) (damageRoll * speedDefenseMod);
+
+					int nextHealth = currentHealth - damageRoll;
+
+					int hitSplatPosition = hitSplats.size() + 1;
+
+					if (hitSplats.size() > 4)
+					{
+						HitSplat lastHitSplat = hitSplats.get(0);
+						for (HitSplat hitSplat : hitSplats)
+						{
+							if (hitSplat.getHitTimer() > lastHitSplat.getHitTimer())
+							{
+								lastHitSplat = hitSplat;
+								hitSplatPosition = hitSplat.getSplatPosition();
+							}
+						}
+					}
+
+					HitSplat hitSplat = new HitSplat(damageRoll, 80, hitSplatPosition);
+					hitSplats.add(0, hitSplat);
+
+					healthBarTimer = 400;
+
+					if (nextHealth <= 0)
+					{
+						hitSplat.setHitValue(currentHealth);
+						currentHealth = 0;
+
+						shipObject.setShouldLoop(false);
+						shipObject.setAnimation(modelHandler.fireAnimation);
+						RuneLiteObject fire = client.createRuneLiteObject();
+						fire.setModel(modelHandler.fireModel);
+						fire.setAnimation(modelHandler.fireAnimation);
+						fire.setLocation(shipObject.getLocation(), 0);
+						fire.setActive(true);
+						deathState = true;
+					}
+					else
+					{
+						currentHealth = nextHealth;
+					}
+
+				}
+				else
+				{
+					int newX = (xDifference * projectile.getTimer() / 80) + currentProjectileX;
+					int newY = (yDifference * projectile.getTimer() / 80) + currentProjectileY;
+					projectileObject.setLocation(new LocalPoint(newX, newY), 0);
+				}
+			}
+
+			if (!projectile.isTargetsPlayer())
+			{
+				NPCCharacter npc = projectile.getTarget();
+				RuneLiteObject target = npc.getRuneLiteObject();
+
+				if (!npc.isDying())
+				{
+					int currentProjectileX = projectileObject.getLocation().getX();
+					int currentProjectileY = projectileObject.getLocation().getY();
+
+					int currentTargetX = target.getLocation().getX();
+					int currentTargetY = target.getLocation().getY();
+
+					int xDifference = currentTargetX - currentProjectileX;
+					int yDifference = currentTargetY - currentProjectileY;
+
+					if (Math.abs(xDifference) < 6 && Math.abs(yDifference) < 6)
+					{
+						int currentHealth = npc.getCurrentHealth();
+						int damageVariation = random.nextInt(projectile.getMaxHit()) + 5;
+						int nextHealth = currentHealth - damageVariation;
+
+						if (!npc.isDying())
+						{
+							npc.setLastHit(damageVariation);
+							npc.setHitTimer(80);
+							npc.setHealthBarTimer(400);
+							npc.setCurrentHealth(nextHealth);
+
+							if (nextHealth <= 0)
+							{
+								npc.setLastHit(currentHealth);
+								target.setShouldLoop(false);
+								target.setAnimation(npc.getDeathAnimation());
+
+								if (npc.getNpcType() == NPCType.MERCHANT)
+								{
+									RuneLiteObject fire = client.createRuneLiteObject();
+									fire.setModel(modelHandler.fireModel);
+									fire.setAnimation(modelHandler.fireAnimation);
+									fire.setLocation(target.getLocation(), 0);
+									fire.setActive(true);
+								}
+
+								npc.setDying(true);
+							}
+						}
+
+						projectileObject.setActive(false);
+						activeProjectiles.remove(projectile);
+					}
+					else
+					{
+						int newX = (xDifference * projectile.getTimer() / 50) + currentProjectileX;
+						int newY = (yDifference * projectile.getTimer() / 50) + currentProjectileY;
+						projectileObject.setLocation(new LocalPoint(newX, newY), 0);
+					}
+				}
+				else
+				{
+					projectileObject.setActive(false);
+					activeProjectiles.remove(projectile);
+				}
+			}
+		}
+	}
+
+	//Since the player's boat can receive multiple hits, remove hitsplats after their timer expires
+	public void updatePlayerHitSplats()
+	{
+		for (int i = 0; i < hitSplats.size(); i++)
+		{
+			HitSplat hitSplat = hitSplats.get(i);
+			if (hitSplat.getHitTimer() <= 0)
+			{
+				hitSplats.remove(hitSplat);
+			}
+		}
+	}
+
+	//Get NPC to always face the boat when it's in chasing range
+	public void updateNPCOrientation()
+	{
+		for (NPCCharacter npc : npcCharacters)
+		{
+			if (npc.isDying() || !npc.isChasing())
+			{
+				continue;
+			}
+
+			RuneLiteObject runeLiteObject = npc.getRuneLiteObject();
+
+			double currentShipX = shipObject.getLocation().getX();
+			double currentShipY = shipObject.getLocation().getY();
+
+			double currentNPCX = runeLiteObject.getLocation().getX();
+			double currentNPCY = runeLiteObject.getLocation().getY();
+
+			double xDifference = currentNPCX - currentShipX;
+			double yDifference = currentNPCY - currentShipY;
+
+			double angle = 0;
+
+			double npcToShipAngle = Math.abs(Math.atan(yDifference / xDifference));
+
+			if (xDifference > 0 && yDifference <= 0)
+			{
+				angle = npcToShipAngle + (3 * Math.PI / 2);
+			}
+			else if (xDifference >= 0 && yDifference > 0)
+			{
+				angle = Math.atan(xDifference / yDifference) + Math.PI;
+			}
+			else if (xDifference < 0 && yDifference >= 0)
+			{
+				angle = npcToShipAngle + (Math.PI / 2);
+			}
+			else if (xDifference <= 0 && yDifference < 0)
+			{
+				angle = Math.atan(xDifference / yDifference);
+			}
+
+			int nextOrientation = (int) ((angle * 1024 / Math.PI) - 1024);
+			if (nextOrientation < 0)
+			{
+				nextOrientation += 2048;
+			}
+			runeLiteObject.setOrientation(nextOrientation);
+
+		}
+	}
+
+	//If right-clicking over water, create a new menu with options to build your boat or spawn NPCs
+	@Subscribe
+	public void onMenuOpened(MenuOpened event)
+	{
+		if (event.getFirstEntry().getType().equals(MenuAction.WALK))
+		{
+			setWaterTileRightClick();
+		}
+	}
+
+	//If the player's boat is spawned, set the combat tab to a sailing tab
+	@Subscribe
+	public void onWidgetLoaded(WidgetLoaded event)
+	{
+		if (event.getGroupId() == WidgetInfo.FIXED_VIEWPORT_COMBAT_TAB.getGroupId())
+		{
+			currentGameClientLayout = GameClientLayout.CLASSIC;
+			if (shipObject == null)
+			{
+				return;
+			}
+
+			widgetSetter.setupFixedTab();
 		}
 
- */
+		if (event.getGroupId() == WidgetInfo.RESIZABLE_VIEWPORT_COMBAT_TAB.getGroupId())
+		{
+			currentGameClientLayout = GameClientLayout.RESIZED;
+			if (shipObject == null)
+			{
+				return;
+			}
+
+			widgetSetter.setupResizableTab();
+		}
+
+		if (event.getGroupId() == WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_COMBAT_ICON.getGroupId())
+		{
+			currentGameClientLayout = GameClientLayout.MODERN;
+			if (shipObject == null)
+			{
+				return;
+			}
+
+			widgetSetter.setupModernTab();
+		}
+	}
+
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged event)
+	{
+		if (event.getGameState() != GameState.LOGGED_IN)
+		{
+			despawnBoat();
+			deathState = false;
+			return;
+		}
+
+		currentTrial = 0;
+		currentNPCSpawns = 0;
 	}
 
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
-
-		if (client.getGameState() == GameState.LOGGED_IN)
+		if (!modelsLoaded)
 		{
-			Tile tile = client.getSelectedSceneTile();
-			if (tile != null)
-			{
-				WorldPoint worldPoint = tile.getWorldLocation();
-				System.out.println("X: " + worldPoint.getX() + ", Y: " + worldPoint.getY());
-			}
-		}
-
-
-		if (!modelsLoaded) {
 			modelHandler.loadModels();
 			shipModel0 = modelHandler.shipModel0;
-			shipModelP45 = modelHandler.shipModelP45;
-			shipModelP90 = modelHandler.shipModelP90;
 			shipModelN45 = modelHandler.shipModelN45;
 			shipModelN90 = modelHandler.shipModelN90;
+			shipModelP45 = modelHandler.shipModelP45;
+			shipModelP90 = modelHandler.shipModelP90;
 			modelsLoaded = true;
 		}
 
@@ -327,7 +560,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 			return;
 		}
 
-		checkRegionObjectsNPCs();
+		checkRegionChanges();
 
 		if (buildBoatTimer > 0)
 		{
@@ -346,51 +579,157 @@ public class SailingPlugin extends Plugin implements KeyListener
 
 		if (shipObject != null)
 		{
-			updateBoatRotation();
-			updateSailRotation();
+			updateBoatOrientation();
 			updateSailLength();
 			recalculateSpeed();
-			//recalcSpeed();
 			updateWindDirection();
+			updateBoatModel();
 			updateCannonRange();
 			fireCannon();
 			checkXPDrop();
-			checkFishing();
+			checkFishingCatch();
 			updateCamera();
 			updateNPCAggression();
 			fireNPCProjectiles();
-			sendChatMessage("Speed: " + speed);
 		}
 
 		updateNPCPositions();
 	}
 
-	public void updateSailLength()
+	//Determines if this is an appropriate region to spawn static objects (obstacle courses, fishing spots)
+	public void checkRegionChanges()
 	{
-		sailLength += sailLengthQueue;
-		sailLengthQueue = 0;
+		Player player = client.getLocalPlayer();
+		WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, player.getLocalLocation());
+		int regionId = worldPoint.getRegionID();
 
-		if (sailLength > 3)
+		boolean withinTrialRegion = false;
+		int startTrialObject = 0;
+		int endTrialObject = 0;
+		int nextTrial = 0;
+
+		for (TrialRegions reg : TrialRegions.values())
 		{
-			sailLength = 3;
+			for (int region : reg.getRegionArray())
+			{
+				if (regionId == region)
+				{
+					startTrialObject = reg.getStartTrialObject();
+					endTrialObject = reg.getEndTrialObject();
+					withinTrialRegion = true;
+					nextTrial = reg.getTrialId();
+					break;
+				}
+			}
 		}
 
-		if (sailLength < 1)
+		if (withinTrialRegion && client.getPlane() == 0)
 		{
-			sailLength = 1;
+			if (currentTrial != nextTrial)
+			{
+				currentTrial = nextTrial;
+				deployTrialSet(startTrialObject, endTrialObject);
+			}
+		}
+		else
+		{
+			currentTrial = 0;
+			clearTrialSet();
 		}
 
-		sendChatMessage("SailLength: " + sailLength);
+		boolean withinNPCRegion = false;
+		int startNPC = 0;
+		int endNPC = 0;
+		int nextNPCSpawn = 0;
+
+		for (NPCRegions reg : NPCRegions.values())
+		{
+			for (int region : reg.getRegionArray())
+			{
+				if (regionId == region)
+				{
+					startNPC = reg.getStartNPC();
+					endNPC = reg.getEndNPC();
+					withinNPCRegion = true;
+					nextNPCSpawn = reg.getTrialId();
+					break;
+				}
+			}
+		}
+
+		if (withinNPCRegion && client.getPlane() == 0)
+		{
+			if (currentNPCSpawns != nextNPCSpawn)
+			{
+				currentNPCSpawns = nextNPCSpawn;
+				deployNPCSet(startNPC, endNPC);
+			}
+		}
+		else
+		{
+			currentNPCSpawns = 0;
+			clearRegionNPCSet();
+		}
 	}
 
-	public void recalcSpeed()
+	public void updateBoatOrientation()
+	{
+		if (boatRotationQueue > 0)
+		{
+			absoluteBoatOrientation += 256;
+			if (absoluteBoatOrientation == 2048)
+			{
+				absoluteBoatOrientation = 0;
+			}
+
+			shipObject.setOrientation(absoluteBoatOrientation);
+			boatRotationQueue--;
+		}
+
+		if (boatRotationQueue < 0)
+		{
+			absoluteBoatOrientation -= 256;
+			if (absoluteBoatOrientation == -256)
+			{
+				absoluteBoatOrientation = 1792;
+			}
+			shipObject.setOrientation(absoluteBoatOrientation);
+			boatRotationQueue++;
+		}
+	}
+
+	public void updateSailLength()
+	{
+		int newSailLength = sailLength + sailLengthQueue;
+		sailLengthQueue = 0;
+
+		if (newSailLength < 0)
+		{
+			sailLength = 0;
+			anchorMode = true;
+			return;
+		}
+
+		sailLength = Math.min(newSailLength, 3);
+
+		anchorMode = false;
+	}
+
+	public void recalculateSpeed()
 	{
 		if (shipObject == null)
 		{
 			return;
 		}
 
-		int boatOrientation = RotationTranslator.translateOrientation(absoluteBoatOrientation);
+		if (anchorMode || sailLength == 0)
+		{
+			speed = 0;
+			boatMomentum = 0;
+			return;
+		}
+
+		int boatOrientation = BoatMaths.translateOrientation(absoluteBoatOrientation);
 		int boatDifference = Math.abs(windDirection - boatOrientation);
 
 		int boatDirectionSpeed;
@@ -415,22 +754,367 @@ public class SailingPlugin extends Plugin implements KeyListener
 		}
 
 		int newSpeed = sailLength + boatDirectionSpeed;
-		if (newSpeed < 1)
+		if (newSpeed < 1 || sailLength == 1)
 		{
 			newSpeed = 1;
-		}
-
-		if (anchorMode)
-		{
-			speed = 0;
-			return;
 		}
 
 		if (speed > newSpeed)
 		{
 			boatMomentum = 30;
 		}
+
 		speed = newSpeed;
+	}
+
+	public void updateWindDirection()
+	{
+		windChangeTimer++;
+		if (windChangeTimer >= config.windChangeRate())
+		{
+			int roll = random.nextInt(8) * 256;
+			while (roll == windDirection)
+			{
+				roll = random.nextInt(8) * 256;
+			}
+			windDirection = roll;
+			windChangeTimer = 0;
+		}
+	}
+
+	public void updateBoatModel()
+	{
+		int currentBoatOrientation = BoatMaths.translateOrientation(absoluteBoatOrientation);
+		int difference = BoatMaths.boundOrientation(currentBoatOrientation - windDirection) / 256;
+		Model lastModel = shipObject.getModel();
+
+		switch (difference)
+		{
+			case 0:
+				shipObject.setModel(shipModel0);
+				break;
+			case 1:
+				shipObject.setModel(shipModelN45);
+				break;
+			case 2:
+			case 3:
+				shipObject.setModel(shipModelN90);
+				break;
+			case 4:
+				if (lastModel == shipModelN45 || lastModel == shipModelN90 || lastModel == shipModel0)
+				{
+					shipObject.setModel(shipModelN90);
+					break;
+				}
+
+				shipObject.setModel(shipModelP90);
+				break;
+			case 5:
+			case 6:
+				shipObject.setModel(shipModelP90);
+				break;
+			case 7:
+				shipObject.setModel(shipModelP45);
+		}
+	}
+
+	public void updateCannonRange()
+	{
+		int currentX = shipObject.getLocation().getSceneX();
+		int currentY = shipObject.getLocation().getSceneY();
+
+		int direction = BoatMaths.translateOrientation(absoluteBoatOrientation);
+		int directionX = 0;
+		int directionY = 0;
+
+		switch (direction)
+		{
+			default:
+			case 0:
+				directionY--;
+				break;
+			case 256:
+				directionY--;
+				directionX--;
+				break;
+			case 512:
+				directionX--;
+				break;
+			case 768:
+				directionY++;
+				directionX--;
+				break;
+			case 1024:
+				directionY++;
+				break;
+			case 1280:
+				directionY++;
+				directionX++;
+				break;
+			case 1536:
+				directionX++;
+				break;
+			case 1792:
+				directionX++;
+				directionY--;
+		}
+
+		int[] cannonRangeX = CannonRange.getCannonX(direction);
+		int[] cannonRangeY = CannonRange.getCannonY(direction);
+
+		int finalSpeed = speed;
+		if (boatMomentum > 0)
+		{
+			finalSpeed++;
+		}
+
+		if (anchorMode)
+		{
+			finalSpeed = 0;
+		}
+
+		int changeX = directionX * finalSpeed;
+		int changeY = directionY * finalSpeed;
+		cannonTiles = getTiles(currentX + changeX, currentY + changeY, cannonRangeX, cannonRangeY);
+	}
+
+	public void fireCannon()
+	{
+		if (cannonCoolDown > 0)
+		{
+			cannonCoolDown--;
+			fireCannon = false;
+			return;
+		}
+
+		if (deathState)
+		{
+			return;
+		}
+
+		if (fireCannon)
+		{
+			boolean targetExists = false;
+			fireCannon = false;
+			for (NPCCharacter npc : npcCharacters)
+			{
+				if (npc.isDying())
+				{
+					continue;
+				}
+
+				RuneLiteObject runeLiteObject = npc.getRuneLiteObject();
+
+				for (Tile tile : cannonTiles)
+				{
+					LocalPoint tileLocation = tile.getLocalLocation();
+					LocalPoint npcLocation = runeLiteObject.getLocation();
+
+					if (tileLocation.distanceTo(npcLocation) <= npc.getNpcSize().getHitboxRadius())
+					{
+						targetExists = true;
+						spawnProjectile(npc, shipTypeMaxHit(), shipObject.getLocation(), modelHandler.cannonballModel, null, false);
+						break;
+					}
+				}
+			}
+
+			if (targetExists)
+			{
+				XPDrop xpDrop = new XPDrop(false, true, 325, 350);
+				xpCannonDrops.add(xpDrop);
+				cannonCoolDown = 1;
+			}
+			else
+			{
+				sendChatMessage("There are no valid targets to fire on!");
+			}
+
+			//reintroduce cannoncooldown even on a miss?
+		}
+	}
+
+	//Once enough sailing time has occurred, draw xp drop
+	public void checkXPDrop()
+	{
+		if (xpDropAccumulator >= 120)
+		{
+			xpDropAccumulator = 0;
+			XPDrop xpDrop = new XPDrop(false, false, 325, 350);
+			xpSailingDrops.add(xpDrop);
+		}
+	}
+
+	//Checks if it is valid for a boat to start fishing and randomly allows a fish to be caught depending on region
+	public void checkFishingCatch()
+	{
+		if (!fishing || !validFishingTile())
+		{
+			fishing = false;
+			return;
+		}
+
+		if (client.getTickCount() % 12 > 0)
+		{
+			return;
+		}
+
+		FishDrop fishDrop;
+		xpFishDrops.add(new XPDrop(false, true, 325, 350));
+
+		switch (currentTrial)
+		{
+			default:
+			case 3:
+				sendChatMessage("You catch a marlin.");
+				fishDrop = new FishDrop(1, 100);
+				fishDrops.add(fishDrop);
+				break;
+			case 4:
+				sendChatMessage("You catch a grouper.");
+				fishDrop = new FishDrop(2, 100);
+				fishDrops.add(fishDrop);
+				break;
+			case 5:
+				sendChatMessage("You catch a sturgeon.");
+				fishDrop = new FishDrop(3, 100);
+				fishDrops.add(fishDrop);
+		}
+	}
+
+	//If enabled in config, sets the camera to one of the cardinal directions to always try and be behind the boat
+	public void updateCamera()
+	{
+		if (!config.enableAutoCamera())
+		{
+			return;
+		}
+
+		int direction = -1;
+		int boatOrientation = BoatMaths.translateOrientation(absoluteBoatOrientation);
+
+		switch (boatOrientation)
+		{
+			case 1024:
+				direction = 1;
+				break;
+			case 1536:
+				direction = 2;
+				break;
+			case 0:
+				direction = 3;
+				break;
+			case 512:
+				direction = 4;
+		}
+
+		if (direction == -1)
+		{
+			return;
+		}
+
+		client.runScript(1050, direction);
+	}
+
+	//Sets the NPC's chasing and attacking states if within appropriate range
+	public void updateNPCAggression()
+	{
+		for (NPCCharacter npc : npcCharacters)
+		{
+			if (!npc.isAggressive())
+			{
+				continue;
+			}
+
+			if (deathState)
+			{
+				npc.setAttacking(false);
+				npc.setChasing(false);
+				continue;
+			}
+
+			LocalPoint shipLocation = shipObject.getLocation();
+			RuneLiteObject npcObject = npc.getRuneLiteObject();
+			LocalPoint npcLocation = npcObject.getLocation();
+			int distance = npcLocation.distanceTo(shipLocation);
+			int attackRange = npc.getAttackRange() * 128;
+			int chaseRange = npc.getChaseRange() * 128;
+			int krakenBiteRange = 1408;
+
+			if (distance <= attackRange)
+			{
+				npc.setAttacking(true);
+				npc.setChasing(true);
+			}
+			else if (distance <= chaseRange)
+			{
+				npc.setAttacking(false);
+				npc.setChasing(true);
+			}
+			else
+			{
+				npc.setAttacking(false);
+				npc.setChasing(false);
+			}
+
+			if (npc.getNpcType() == NPCType.KRAKEN_BOSS)
+			{
+				if (distance <= krakenBiteRange)
+				{
+					npc.setKrakenBossBite(true);
+					return;
+				}
+
+				npc.setKrakenBossBite(false);
+			}
+		}
+	}
+
+	//If the player's boat is in range and the NPC's cooldown is over, fire a new projectile at the player's boat
+	public void fireNPCProjectiles()
+	{
+		for (NPCCharacter npc : npcCharacters)
+		{
+			int coolDown = npc.getCoolDownTimer();
+			if (coolDown > 0)
+			{
+				npc.setCoolDownTimer(coolDown - 1);
+				continue;
+			}
+
+			if (!npc.isAggressive() || npc.isDying())
+			{
+				continue;
+			}
+
+			if (npc.isAttacking())
+			{
+				RuneLiteObject runeLiteObject = npc.getRuneLiteObject();
+
+				if (npc.isKrakenBossBite())
+				{
+					spawnProjectile(null, 400, runeLiteObject.getLocation(), modelHandler.emptyModel, null, true);
+					runeLiteObject.setAnimation(modelHandler.krakenBiteAnimation);
+				}
+				else
+				{
+					int maxHit = npc.getMaxHit();
+					if (npc.getNpcType() == NPCType.KRAKEN_TENTACLE)
+					{
+						if (speed > 2 || (speed > 1 && boatMomentum > 0))
+						{
+							maxHit = 5;
+							sendChatMessage("Your speed prevents the tentacle from scoring a direct hit.");
+						}
+					}
+
+					spawnProjectile(null, maxHit, runeLiteObject.getLocation(), npc.getProjectileModel(), npc.getProjectileAnimation(), true);
+					runeLiteObject.setAnimation(npc.getAttackAnimation());
+				}
+
+				npc.setCoolDownTimer(npc.getAttackSpeed());
+			}
+		}
 	}
 
 	//Set NPC position/movement pattern according to type of NPC
@@ -446,7 +1130,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 			NPCType type = npc.getNpcType();
 			RuneLiteObject runeLiteObject = npc.getRuneLiteObject();
 			LocalPoint localPoint = runeLiteObject.getLocation();
-			int plane = client.getPlane();
+			int plane = 0;
 
 			if (type == NPCType.KRAKEN || type == NPCType.CROCODILE)
 			{
@@ -555,595 +1239,12 @@ public class SailingPlugin extends Plugin implements KeyListener
 				}
 
 				LocalPoint nextPosition = LocalPoint.fromScene(localPoint.getSceneX() + xShift, localPoint.getSceneY());
-				runeLiteObject.setLocation(nextPosition, client.getPlane());
+				runeLiteObject.setLocation(nextPosition, 0);
 			}
 		}
 	}
 
-	//Since the player's boat can receive multiple hits, remove hitsplats after their timer expires
-	public void updatePlayerHitSplats()
-	{
-		for (int i = 0; i < hitSplats.size(); i++)
-		{
-			HitSplat hitSplat = hitSplats.get(i);
-			if (hitSplat.getHitTimer() <= 0)
-			{
-				hitSplats.remove(hitSplat);
-			}
-		}
-	}
-
-	//If the player's boat is in range and the NPC's cooldown is over, fire a new projectile at the player's boat
-	public void fireNPCProjectiles()
-	{
-		for (NPCCharacter npc : npcCharacters)
-		{
-			int coolDown = npc.getCoolDownTimer();
-			if (coolDown > 0)
-			{
-				npc.setCoolDownTimer(coolDown - 1);
-				continue;
-			}
-
-			if (!npc.isAggressive() || npc.isDying())
-			{
-				continue;
-			}
-
-			if (npc.isAttacking())
-			{
-				RuneLiteObject runeLiteObject = npc.getRuneLiteObject();
-
-				if (npc.isKrakenBossBite())
-				{
-					spawnProjectile(null, 400, runeLiteObject.getLocation(), modelHandler.emptyModel, null, true);
-					runeLiteObject.setAnimation(modelHandler.krakenBiteAnimation);
-				}
-				else
-				{
-					int maxHit = npc.getMaxHit();
-					if (npc.getNpcType() == NPCType.KRAKEN_TENTACLE)
-					{
-						if (speed > 2 || (speed > 1 && boatMomentum > 0))
-						{
-							maxHit = 5;
-							sendChatMessage("Your speed prevents the tentacle from scoring a direct hit.");
-						}
-					}
-
-					spawnProjectile(null, maxHit, runeLiteObject.getLocation(), npc.getProjectileModel(), npc.getProjectileAnimation(), true);
-					runeLiteObject.setAnimation(npc.getAttackAnimation());
-				}
-
-				npc.setCoolDownTimer(npc.getAttackSpeed());
-			}
-		}
-	}
-
-	/*
-	Updates the position of each active projectile to close in on its target
-	If the projectile is close enough to its target, set a hitsplat and healthbar to appear
-	If the damage is greater than health remaining, set the target's death state
-	*/
-	public void updateProjectilePosition()
-	{
-		for (int i = 0; i < activeProjectiles.size(); i++)
-		{
-			Projectile projectile = activeProjectiles.get(i);
-			projectile.setTimer(projectile.getTimer() + 1);
-			RuneLiteObject projectileObject = projectile.getProjectile();
-
-			if (projectileObject == null)
-			{
-				continue;
-			}
-
-			if (projectile.isTargetsPlayer())
-			{
-				int currentProjectileX = projectileObject.getLocation().getX();
-				int currentProjectileY = projectileObject.getLocation().getY();
-
-				int boatX = shipObject.getLocation().getX();
-				int boatY = shipObject.getLocation().getY();
-
-				int xDifference = boatX - currentProjectileX;
-				int yDifference = boatY - currentProjectileY;
-
-				if (Math.abs(xDifference) < PROJECTILE_HIT_RANGE && Math.abs(yDifference) < PROJECTILE_HIT_RANGE)
-				{
-					projectileObject.setActive(false);
-					activeProjectiles.remove(projectile);
-
-					if (deathState)
-					{
-						continue;
-					}
-
-					int damageRoll = random.nextInt(projectile.getMaxHit()) + 1;
-					double speedDefenseMod = (double) (speed - 1) / 10;
-					damageRoll -= (int) (damageRoll * speedDefenseMod);
-
-					int nextHealth = currentHealth - damageRoll;
-
-					int hitSplatPosition = hitSplats.size() + 1;
-
-					if (hitSplats.size() > 4)
-					{
-						HitSplat lastHitSplat = hitSplats.get(0);
-						for (HitSplat hitSplat : hitSplats)
-						{
-							if (hitSplat.getHitTimer() > lastHitSplat.getHitTimer())
-							{
-								lastHitSplat = hitSplat;
-								hitSplatPosition = hitSplat.getSplatPosition();
-							}
-						}
-					}
-
-					HitSplat hitSplat = new HitSplat(damageRoll, 80, hitSplatPosition);
-					hitSplats.add(0, hitSplat);
-
-					healthBarTimer = 400;
-
-					if (nextHealth <= 0)
-					{
-						hitSplat.setHitValue(currentHealth);
-						currentHealth = 0;
-
-						shipObject.setShouldLoop(false);
-						shipObject.setAnimation(modelHandler.fireAnimation);
-						RuneLiteObject fire = client.createRuneLiteObject();
-						fire.setModel(modelHandler.fireModel);
-						fire.setAnimation(modelHandler.fireAnimation);
-						fire.setLocation(shipObject.getLocation(), client.getPlane());
-						fire.setActive(true);
-						deathState = true;
-					}
-					else
-					{
-						currentHealth = nextHealth;
-					}
-
-				}
-				else
-				{
-					int newX = (xDifference * projectile.getTimer() / 80) + currentProjectileX;
-					int newY = (yDifference * projectile.getTimer() / 80) + currentProjectileY;
-					projectileObject.setLocation(new LocalPoint(newX, newY), client.getPlane());
-				}
-			}
-
-			if (!projectile.isTargetsPlayer())
-			{
-				NPCCharacter npc = projectile.getTarget();
-				RuneLiteObject target = npc.getRuneLiteObject();
-
-				if (!npc.isDying())
-				{
-					int currentProjectileX = projectileObject.getLocation().getX();
-					int currentProjectileY = projectileObject.getLocation().getY();
-
-					int currentTargetX = target.getLocation().getX();
-					int currentTargetY = target.getLocation().getY();
-
-					int xDifference = currentTargetX - currentProjectileX;
-					int yDifference = currentTargetY - currentProjectileY;
-
-					if (Math.abs(xDifference) < 6 && Math.abs(yDifference) < 6)
-					{
-						int currentHealth = npc.getCurrentHealth();
-						int damageVariation = random.nextInt(projectile.getMaxHit()) + 5;
-						int nextHealth = currentHealth - damageVariation;
-
-						if (!npc.isDying())
-						{
-							npc.setLastHit(damageVariation);
-							npc.setHitTimer(80);
-							npc.setHealthBarTimer(400);
-							npc.setCurrentHealth(nextHealth);
-
-							if (nextHealth <= 0)
-							{
-								npc.setLastHit(currentHealth);
-								target.setShouldLoop(false);
-								target.setAnimation(npc.getDeathAnimation());
-
-								if (npc.getNpcType() == NPCType.MERCHANT)
-								{
-									RuneLiteObject fire = client.createRuneLiteObject();
-									fire.setModel(modelHandler.fireModel);
-									fire.setAnimation(modelHandler.fireAnimation);
-									fire.setLocation(target.getLocation(), client.getPlane());
-									fire.setActive(true);
-								}
-
-								npc.setDying(true);
-							}
-						}
-
-						projectileObject.setActive(false);
-						activeProjectiles.remove(projectile);
-					}
-					else
-					{
-						int newX = (xDifference * projectile.getTimer() / 50) + currentProjectileX;
-						int newY = (yDifference * projectile.getTimer() / 50) + currentProjectileY;
-						projectileObject.setLocation(new LocalPoint(newX, newY), client.getPlane());
-					}
-				}
-				else
-				{
-					projectileObject.setActive(false);
-					activeProjectiles.remove(projectile);
-				}
-			}
-		}
-	}
-
-	//Get NPC to always face the boat when it's in chasing range
-	public void updateNPCOrientation()
-	{
-		for (NPCCharacter npc : npcCharacters)
-		{
-			if (npc.isDying() || !npc.isChasing())
-			{
-				continue;
-			}
-
-			RuneLiteObject runeLiteObject = npc.getRuneLiteObject();
-
-			double currentShipX = shipObject.getLocation().getX();
-			double currentShipY = shipObject.getLocation().getY();
-
-			double currentNPCX = runeLiteObject.getLocation().getX();
-			double currentNPCY = runeLiteObject.getLocation().getY();
-
-			double xDifference = currentNPCX - currentShipX;
-			double yDifference = currentNPCY - currentShipY;
-
-			double angle = 0;
-
-			double npcToShipAngle = Math.abs(Math.atan(yDifference / xDifference));
-
-			if (xDifference > 0 && yDifference <= 0)
-			{
-				angle = npcToShipAngle + (3 * Math.PI / 2);
-			}
-			else if (xDifference >= 0 && yDifference > 0)
-			{
-				angle = Math.atan(xDifference / yDifference) + Math.PI;
-			}
-			else if (xDifference < 0 && yDifference >= 0)
-			{
-				angle = npcToShipAngle + (Math.PI / 2);
-			}
-			else if (xDifference <= 0 && yDifference < 0)
-			{
-				angle = Math.atan(xDifference / yDifference);
-			}
-
-			int nextOrientation = (int) ((angle * 1024 / Math.PI) - 1024);
-			if (nextOrientation < 0)
-			{
-				nextOrientation += 2048;
-			}
-			runeLiteObject.setOrientation(nextOrientation);
-
-		}
-	}
-
-	//Sets the NPC's chasing and attacking states if within appropriate range
-	public void updateNPCAggression()
-	{
-		for (NPCCharacter npc : npcCharacters)
-		{
-			if (!npc.isAggressive())
-			{
-				continue;
-			}
-
-			if (deathState)
-			{
-				npc.setAttacking(false);
-				npc.setChasing(false);
-				continue;
-			}
-
-			LocalPoint shipLocation = shipObject.getLocation();
-			RuneLiteObject npcObject = npc.getRuneLiteObject();
-			LocalPoint npcLocation = npcObject.getLocation();
-			int distance = npcLocation.distanceTo(shipLocation);
-			int attackRange = npc.getAttackRange() * 128;
-			int chaseRange = npc.getChaseRange() * 128;
-			int krakenBiteRange = 1408;
-
-			if (distance <= attackRange)
-			{
-				npc.setAttacking(true);
-				npc.setChasing(true);
-			}
-			else if (distance <= chaseRange)
-			{
-				npc.setAttacking(false);
-				npc.setChasing(true);
-			}
-			else
-			{
-				npc.setAttacking(false);
-				npc.setChasing(false);
-			}
-
-			if (npc.getNpcType() == NPCType.KRAKEN_BOSS)
-			{
-				if (distance <= krakenBiteRange)
-				{
-					npc.setKrakenBossBite(true);
-					return;
-				}
-
-				npc.setKrakenBossBite(false);
-			}
-		}
-	}
-
-	@Subscribe
-	public void onWidgetLoaded(WidgetLoaded event)
-	{
-		if (event.getGroupId() == WidgetInfo.FIXED_VIEWPORT_COMBAT_TAB.getGroupId())
-		{
-			currentGameClientLayout = GameClientLayout.CLASSIC;
-			if (shipObject == null)
-			{
-				return;
-			}
-
-			widgetSetter.setupFixedTab();
-		}
-
-		if (event.getGroupId() == WidgetInfo.RESIZABLE_VIEWPORT_COMBAT_TAB.getGroupId())
-		{
-			currentGameClientLayout = GameClientLayout.RESIZED;
-			if (shipObject == null)
-			{
-				return;
-			}
-
-			widgetSetter.setupResizableTab();
-		}
-
-		if (event.getGroupId() == WidgetInfo.RESIZABLE_VIEWPORT_BOTTOM_LINE_COMBAT_ICON.getGroupId())
-		{
-			currentGameClientLayout = GameClientLayout.MODERN;
-			if (shipObject == null)
-			{
-				return;
-			}
-
-			widgetSetter.setupModernTab();
-		}
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged event)
-	{
-		if (event.getGameState() != GameState.LOGGED_IN)
-		{
-			despawnBoat();
-			deathState = false;
-			return;
-		}
-
-		currentTrial = 0;
-	}
-
-	public void updateCamera()
-	{
-		if (!config.enableAutoCamera())
-		{
-			return;
-		}
-
-		int direction = -1;
-		int boatOrientation = RotationTranslator.translateOrientation(absoluteBoatOrientation);
-
-		switch (boatOrientation)
-		{
-			case 1024:
-				direction = 1;
-				break;
-			case 1536:
-				direction = 2;
-				break;
-			case 0:
-				direction = 3;
-				break;
-			case 512:
-				direction = 4;
-		}
-
-		if (direction == -1)
-		{
-			return;
-		}
-
-		client.runScript(1050, direction);
-	}
-
-	//Checks if it is valid for a boat to start fishing and randomly allows a fish to be caught depending on region
-	public void checkFishing()
-	{
-		boolean fishingRod = checkInventoryForItem(ItemID.FISHING_ROD);
-
-		LocalPoint localPoint = shipObject.getLocation();
-		int x = localPoint.getSceneX();
-		int y = localPoint.getSceneY();
-		boolean fishingLocation = false;
-
-		for (RuneLiteObject runeLiteObject : fishObjects)
-		{
-			LocalPoint fishPoint = runeLiteObject.getLocation();
-			int fishX = fishPoint.getSceneX();
-			int fishY = fishPoint.getSceneY();
-
-			if (x == fishX && y == fishY)
-			{
-				fishingLocation = true;
-				break;
-			}
-		}
-
-		fishing = false;
-
-		if (fishingLocation)
-		{
-			if (!fishingRod)
-			{
-				sendChatMessage("To begin fishing offshore, you'll need a fishing rod.");
-				return;
-			}
-
-			fishing = true;
-
-			if (client.getTickCount() % 12 > 0)
-			{
-				return;
-			}
-
-			FishDrop fishDrop;
-			xpFishDrops.add(new XPDrop(false, true, 325, 350));
-
-			switch (currentTrial)
-			{
-				default:
-				case 3:
-					sendChatMessage("You catch a marlin.");
-					fishDrop = new FishDrop(1, 100);
-					fishDrops.add(fishDrop);
-					break;
-				case 4:
-					sendChatMessage("You catch a grouper.");
-					fishDrop = new FishDrop(2, 100);
-					fishDrops.add(fishDrop);
-					break;
-				case 5:
-					sendChatMessage("You catch a sturgeon.");
-					fishDrop = new FishDrop(3, 100);
-					fishDrops.add(fishDrop);
-			}
-		}
-	}
-
-	//Checks inventory for argument item
-	public boolean checkInventoryForItem(int itemId)
-	{
-		ItemContainer itemContainer = client.getItemContainer(InventoryID.INVENTORY);
-		if (itemContainer == null)
-		{
-			return false;
-		}
-
-		boolean fishingRod = false;
-		Item[] items = itemContainer.getItems();
-		for (Item item : items)
-		{
-			int id = item.getId();
-			if (id == itemId)
-			{
-				fishingRod = true;
-				break;
-			}
-		}
-
-		return fishingRod;
-	}
-
-	//Once enough sailing time has occurred, draw xp drop
-	public void checkXPDrop()
-	{
-		if (xpDropAccumulator >= 120)
-		{
-			xpDropAccumulator = 0;
-			XPDrop xpDrop = new XPDrop(false, false, 325, 350);
-			xpSailingDrops.add(xpDrop);
-		}
-	}
-
-	//Determines if this is an appropriate region to spawn static objects (obstacle courses, fishing spots)
-	public void checkRegionObjectsNPCs()
-	{
-		Player player = client.getLocalPlayer();
-		WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, player.getLocalLocation());
-		int regionId = worldPoint.getRegionID();
-
-		boolean withinTrialRegion = false;
-		int startTrialObject = 0;
-		int endTrialObject = 0;
-		int nextTrial = 0;
-
-		for (TrialRegions reg : TrialRegions.values())
-		{
-			for (int region : reg.getRegionArray())
-			{
-				if (regionId == region)
-				{
-					startTrialObject = reg.getStartTrialObject();
-					endTrialObject = reg.getEndTrialObject();
-					withinTrialRegion = true;
-					nextTrial = reg.getTrialId();
-					break;
-				}
-			}
-		}
-
-		if (withinTrialRegion)
-		{
-			if (currentTrial != nextTrial)
-			{
-				currentTrial = nextTrial;
-				deployTrialSet(startTrialObject, endTrialObject);
-			}
-		}
-		else
-		{
-			currentTrial = 0;
-			clearTrials();
-		}
-
-		boolean withinNPCRegion = false;
-		int startNPC = 0;
-		int endNPC = 0;
-		int nextNPCSpawn = 0;
-
-		for (NPCRegions reg : NPCRegions.values())
-		{
-			for (int region : reg.getRegionArray())
-			{
-				if (regionId == region)
-				{
-					startNPC = reg.getStartNPC();
-					endNPC = reg.getEndNPC();
-					withinNPCRegion = true;
-					nextNPCSpawn = reg.getTrialId();
-					break;
-				}
-			}
-		}
-
-		if (withinNPCRegion)
-		{
-			if (currentNPCSpawns != nextNPCSpawn)
-			{
-				currentNPCSpawns = nextNPCSpawn;
-				deployNPCSet(startNPC, endNPC);
-			}
-		}
-		else
-		{
-			currentNPCSpawns = 0;
-			clearRegionNPCs();
-		}
-	}
-
+	//If within the correct region, spawns all the appropriate NPCs
 	public void deployNPCSet(int firstNPC, int lastNPC)
 	{
 		for (int i = firstNPC; i < lastNPC; i++)
@@ -1174,6 +1275,22 @@ public class SailingPlugin extends Plugin implements KeyListener
 		}
 	}
 
+	public void clearRegionNPCSet()
+	{
+		for (int i = 0; i < npcCharacters.size(); i++)
+		{
+			NPCCharacter npc = npcCharacters.get(i);
+			if (!npc.isRegionNPC())
+			{
+				return;
+			}
+
+			RuneLiteObject runeLiteObject = npc.getRuneLiteObject();
+			runeLiteObject.setActive(false);
+			npcCharacters.remove(npc);
+		}
+	}
+
 	//Deploys static object sets (obstacle courses, fishing spots) when in the appropriate region
 	public void deployTrialSet(int firstObject, int lastObject)
 	{
@@ -1181,9 +1298,14 @@ public class SailingPlugin extends Plugin implements KeyListener
 		{
 			TrialObject trialObject = TrialObject.values()[i];
 			RuneLiteObject runeLiteObject = client.createRuneLiteObject();
-			WorldPoint worldPoint = new WorldPoint(trialObject.getXLocation(), trialObject.getYLocation(), client.getPlane());
+			WorldPoint worldPoint = new WorldPoint(trialObject.getXLocation(), trialObject.getYLocation(), 0);
+			LocalPoint localPoint = LocalPoint.fromWorld(client, worldPoint);
+			if (localPoint == null)
+			{
+				continue;
+			}
 
-			runeLiteObject.setLocation(LocalPoint.fromWorld(client, worldPoint), client.getPlane());
+			runeLiteObject.setLocation(localPoint, 0);
 
 			Model rlModel;
 			Animation rlAnimation;
@@ -1289,8 +1411,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 		}
 	}
 
-	//Clears up static object sets (obstacle courses, fishing spots)
-	public void clearTrials()
+	public void clearTrialSet()
 	{
 		for (int i = 0; i < configObjects.size(); i++)
 		{
@@ -1306,22 +1427,6 @@ public class SailingPlugin extends Plugin implements KeyListener
 
 		fishObjects.clear();
 		configObjects.clear();
-	}
-
-	public void clearRegionNPCs()
-	{
-		for (int i = 0; i < npcCharacters.size(); i++)
-		{
-			NPCCharacter npc = npcCharacters.get(i);
-			if (!npc.isRegionNPC())
-			{
-				return;
-			}
-
-			RuneLiteObject runeLiteObject = npc.getRuneLiteObject();
-			runeLiteObject.setActive(false);
-			npcCharacters.remove(npc);
-		}
 	}
 
 	//Determines if the selected tile is a water tile. If so, include menu options to spawn an NPC
@@ -1346,33 +1451,30 @@ public class SailingPlugin extends Plugin implements KeyListener
 
 		client.createMenuEntry(-2)
 				.setOption("Spawn dummy")
-				.onClick(this::spawnDummyMouse);
+				.onClick(this::spawnDummyRightClick);
 
 		client.createMenuEntry(-3)
 				.setOption("Spawn kraken")
-				.onClick(this::spawnKrakenMouse);
+				.onClick(this::spawnKrakenRightClick);
 
 		client.createMenuEntry(-4)
-				.setOption("Spawn mega-kraken")
-				.onClick(this::spawnKrakenBossMouse);
+				.setOption("Spawn gull")
+				.onClick(this::spawnGullRightClick);
 
 		client.createMenuEntry(-5)
-				.setOption("Spawn tentacle")
-				.onClick(this::spawnTentacleMouse);
-
-		client.createMenuEntry(-6)
-				.setOption("Spawn gull")
-				.onClick(this::spawnGullMouse);
-
-		client.createMenuEntry(-7)
 				.setOption("Spawn crocodile")
-				.onClick(this::spawnCrocodileMouse);
+				.onClick(this::spawnCrocodileRightClick);
 	}
 
 	public void spawnNPC(NPCType npcType, Model model, NPCSize npcSize, Model projectileModel, int radius, Animation idleAnimation, Animation walkAnimation, Animation attackAnimation, Animation deathAnimation, int attackAnimFrames, Animation projectileAnimation, LocalPoint localPoint, int attackRange, int chaseRange, int maxHit, int attackSpeed, int maxHealth, boolean aggressive, boolean stationary, boolean regionNPC)
 	{
 		RuneLiteObject runeLiteObject = client.createRuneLiteObject();
-		runeLiteObject.setLocation(localPoint, client.getPlane());
+		if (localPoint == null)
+		{
+			return;
+		}
+
+		runeLiteObject.setLocation(localPoint, 0);
 		runeLiteObject.setModel(model);
 		runeLiteObject.setRadius(radius);
 		runeLiteObject.setAnimation(idleAnimation);
@@ -1407,7 +1509,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 		npcCharacters.add(npc);
 	}
 
-	public void spawnDummyMouse(MenuEntry menuEntry)
+	public void spawnDummyRightClick(MenuEntry menuEntry)
 	{
 		LocalPoint localPoint = lastSelectedTile.getLocalLocation();
 		spawnDummy(localPoint, false);
@@ -1418,7 +1520,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 		spawnNPC(NPCType.MERCHANT, modelHandler.npcShipModel, NPCSize.PLUS, null, 120, modelHandler.boatIdleAnimation, null, null, modelHandler.boatDeathAnimation, 0, null, localPoint, 5, 0, 10, 5, 100, false, true, regionNPC);
 	}
 
-	public void spawnKrakenMouse(MenuEntry menuEntry)
+	public void spawnKrakenRightClick(MenuEntry menuEntry)
 	{
 		LocalPoint localPoint = lastSelectedTile.getLocalLocation();
 		spawnKraken(localPoint, false);
@@ -1429,7 +1531,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 		spawnNPC(NPCType.KRAKEN, modelHandler.krakenModel, NPCSize.LARGE, modelHandler.krakenProjectileModel, 120, modelHandler.krakenIdleAnimation, null, modelHandler.krakenSpellAnimation, modelHandler.krakenDeathAnimation, 17, null, localPoint, 7, 14, 30, 5, 255, true, false, regionNPC);
 	}
 
-	public void spawnKrakenBossMouse(MenuEntry menuEntry)
+	public void spawnKrakenBossRightClick(MenuEntry menuEntry)
 	{
 		LocalPoint localPoint = lastSelectedTile.getLocalLocation();
 		spawnKrakenBoss(localPoint, false);
@@ -1440,7 +1542,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 		spawnNPC(NPCType.KRAKEN_BOSS, modelHandler.krakenGiantModel, NPCSize.GIGANTIC, modelHandler.krakenBossProjectileModel, 1400, modelHandler.krakenIdleAnimation, null, modelHandler.krakenSpellAnimation, modelHandler.krakenDeathAnimation, 17, modelHandler.krakenBossProjectileAnimation, localPoint, 30, 60, 45, 10, 1000, true, true, regionNPC);
 	}
 
-	public void spawnTentacleMouse(MenuEntry menuEntry)
+	public void spawnTentacleRightClick(MenuEntry menuEntry)
 	{
 		LocalPoint localPoint = lastSelectedTile.getLocalLocation();
 		spawnTentacle(localPoint, false);
@@ -1451,7 +1553,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 		spawnNPC(NPCType.KRAKEN_TENTACLE, modelHandler.krakenTentacleModel, NPCSize.HUGE, modelHandler.emptyModel, 700, modelHandler.tentacleIdleAnimation, null, modelHandler.tentacleAttackAnimation, modelHandler.tentacleDeathAnimation, 13, null, localPoint, 8, 20, 25, 6, 125, true, true, regionNPC);
 	}
 
-	public void spawnGullMouse(MenuEntry menuEntry)
+	public void spawnGullRightClick(MenuEntry menuEntry)
 	{
 		LocalPoint localPoint = lastSelectedTile.getLocalLocation();
 		spawnGull(localPoint, false);
@@ -1462,7 +1564,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 		spawnNPC(NPCType.GULL, modelHandler.gullModel, NPCSize.SMALL, null, 80, modelHandler.gullIdleAnimation, null, null, modelHandler.gullDeathAnimation, 0, null, localPoint, 1, 0, 1, 4, 25, false, false, regionNPC);
 	}
 
-	public void spawnCrocodileMouse(MenuEntry menuEntry)
+	public void spawnCrocodileRightClick(MenuEntry menuEntry)
 	{
 		LocalPoint localPoint = lastSelectedTile.getLocalLocation();
 		spawnCrocodile(localPoint, false);
@@ -1473,11 +1575,12 @@ public class SailingPlugin extends Plugin implements KeyListener
 		spawnNPC(NPCType.CROCODILE, modelHandler.crocodileModel, NPCSize.PLUS, modelHandler.emptyModel, 100, modelHandler.crocodileIdleAnimation, modelHandler.crocodileWalkAnimation, modelHandler.crocodileAttackAnimation, modelHandler.crocodileIdleAnimation, 2, null, localPoint, 1, 7, 10, 2, 100, true, false, regionNPC);
 	}
 
+	//Spawns a projectile from the player to NPC, or NPC to player
 	public void spawnProjectile(NPCCharacter target, int maxHit, LocalPoint origin, Model model, Animation animation, boolean targetsPlayer)
 	{
 		RuneLiteObject projectileObject = client.createRuneLiteObject();
 		Projectile projectile = new Projectile(projectileObject, target, targetsPlayer, maxHit, 0);
-		projectileObject.setLocation(origin, client.getPlane());
+		projectileObject.setLocation(origin, 0);
 		projectileObject.setModel(model);
 		projectileObject.setActive(true);
 
@@ -1490,128 +1593,14 @@ public class SailingPlugin extends Plugin implements KeyListener
 		activeProjectiles.add(projectile);
 	}
 
-	public void fireCannon()
-	{
-		if (cannonCoolDown > 0)
-		{
-			cannonCoolDown--;
-			fireCannon = false;
-			return;
-		}
-
-		if (deathState)
-		{
-			return;
-		}
-
-		if (fireCannon)
-		{
-			boolean targetExists = false;
-			fireCannon = false;
-			for (NPCCharacter npc : npcCharacters)
-			{
-				if (npc.isDying())
-				{
-					continue;
-				}
-
-				RuneLiteObject runeLiteObject = npc.getRuneLiteObject();
-
-				for (Tile tile : cannonTiles)
-				{
-					LocalPoint tileLocation = tile.getLocalLocation();
-					LocalPoint npcLocation = runeLiteObject.getLocation();
-
-					if (tileLocation.distanceTo(npcLocation) <= npc.getNpcSize().getHitboxRadius())
-					{
-						targetExists = true;
-						spawnProjectile(npc, shipTypeMaxHit(), shipObject.getLocation(), modelHandler.cannonballModel, null, false);
-						break;
-					}
-				}
-			}
-
-			if (targetExists)
-			{
-				XPDrop xpDrop = new XPDrop(false, true, 325, 350);
-				xpCannonDrops.add(xpDrop);
-			}
-			else
-			{
-				sendChatMessage("There are no valid targets to fire on!");
-			}
-
-			cannonCoolDown = 1;
-		}
-	}
-
-	public void updateCannonRange()
-	{
-		int currentX = shipObject.getLocation().getSceneX();
-		int currentY = shipObject.getLocation().getSceneY();
-
-		int direction = RotationTranslator.translateOrientation(absoluteBoatOrientation);
-		int directionX = 0;
-		int directionY = 0;
-
-		switch (direction)
-		{
-			default:
-			case 0:
-				directionY--;
-				break;
-			case 256:
-				directionY--;
-				directionX--;
-				break;
-			case 512:
-				directionX--;
-				break;
-			case 768:
-				directionY++;
-				directionX--;
-				break;
-			case 1024:
-				directionY++;
-				break;
-			case 1280:
-				directionY++;
-				directionX++;
-				break;
-			case 1536:
-				directionX++;
-				break;
-			case 1792:
-				directionX++;
-				directionY--;
-		}
-
-		int[] cannonRangeX = CannonRange.getCannonX(direction);
-		int[] cannonRangeY = CannonRange.getCannonY(direction);
-
-		int finalSpeed = speed;
-		if (boatMomentum > 0)
-		{
-			finalSpeed++;
-		}
-
-		if (anchorMode)
-		{
-			finalSpeed = 0;
-		}
-
-		int changeX = directionX * finalSpeed;
-		int changeY = directionY * finalSpeed;
-		cannonTiles = getTiles(currentX + changeX, currentY + changeY, cannonRangeX, cannonRangeY);
-	}
-
+	//Checks all tiles in front of the boat and determines if they're valid to move onto. Stops the boat once a non-water-tile or object is hit
 	public int[] checkTileCollision(int speed)
 	{
 		LocalPoint lp = shipObject.getLocation();
 		int curX = lp.getSceneX();
 		int curY = lp.getSceneY();
 
-		int direction = RotationTranslator.translateOrientation(absoluteBoatOrientation);
+		int direction = BoatMaths.translateOrientation(absoluteBoatOrientation);
 		int nextX = 0;
 		int nextY = 0;
 		switch (direction)
@@ -1652,8 +1641,26 @@ public class SailingPlugin extends Plugin implements KeyListener
 		{
 			Tile furtherTile = getTile(curX, curY, nextX * i, nextY * i);
 			Tile nearerTile = getTile(curX, curY, nextX * (i - 1), nextY * (i - 1));
+
+			if (nearerTile == null)
+			{
+				projectedX = curX;
+				projectedY = curY;
+				continue;
+			}
+
+			if (furtherTile == null)
+			{
+				projectedX = nearerTile.getLocalLocation().getSceneX();
+				projectedY = nearerTile.getLocalLocation().getSceneY();
+				continue;
+			}
+
 			short furtherOverlay = getTileOverlay(furtherTile);
 			short nearerOverlay = getTileOverlay(nearerTile);
+
+			byte furtherTileFlag = getTileFlag(furtherTile);
+			byte nearerTileFlag = getTileFlag(nearerTile);
 
 			GameObject[] furtherGameObjects = furtherTile.getGameObjects();
 			GameObject[] nearerGameObjects = nearerTile.getGameObjects();
@@ -1732,6 +1739,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 			}
 
 			if ((furtherOverlay != WATER_OVERLAY_ID && nearerOverlay == WATER_OVERLAY_ID)
+					|| (((furtherTileFlag & Constants.TILE_FLAG_BRIDGE) != 0) && ((nearerTileFlag & Constants.TILE_FLAG_BRIDGE) == 0))
 					|| (furtherGameObjectBlocked && !nearerGameObjectBlocked)
 					|| (furtherRLObjectBlocked && !nearerRLObjectBlocked)
 					|| (furtherTileHasKraken && !nearerTileHasKraken))
@@ -1739,7 +1747,6 @@ public class SailingPlugin extends Plugin implements KeyListener
 				projectedX = nearerTile.getLocalLocation().getSceneX();
 				projectedY = nearerTile.getLocalLocation().getSceneY();
 			}
-
 		}
 
 		return new int[]{projectedX, projectedY};
@@ -1749,7 +1756,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 	{
 		Scene scene = client.getScene();
 		Tile[][][] tiles = scene.getTiles();
-		int z = client.getPlane();
+		int z = 0;
 
 		for (int x = 0; x < Constants.SCENE_SIZE; ++x) {
 			for (int y = 0; y < Constants.SCENE_SIZE; ++y) {
@@ -1776,7 +1783,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 	{
 		Scene scene = client.getScene();
 		Tile[][][] tiles = scene.getTiles();
-		int z = client.getPlane();
+		int z = 0;
 		ArrayList<Tile> tileList = new ArrayList<>();
 
 		for (int x = 0; x < Constants.SCENE_SIZE; ++x) {
@@ -1798,12 +1805,10 @@ public class SailingPlugin extends Plugin implements KeyListener
 						tileList.add(tile);
 					}
 				}
-
 			}
 		}
 		return tileList;
 	}
-
 
 	public short getTileOverlay(Tile tile)
 	{
@@ -1813,7 +1818,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 
 	public short getTileOverlay(LocalPoint localPoint)
 	{
-		int z = client.getPlane();
+		int z = 0;
 		int x = localPoint.getSceneX();
 		int y = localPoint.getSceneY();
 
@@ -1822,6 +1827,23 @@ public class SailingPlugin extends Plugin implements KeyListener
 		return overlays[z][x][y];
 	}
 
+	public byte getTileFlag(Tile tile)
+	{
+		LocalPoint localPoint = tile.getLocalLocation();
+		return getTileFlag(localPoint);
+	}
+
+	public byte getTileFlag(LocalPoint localPoint)
+	{
+		int z = 1;
+		int x = localPoint.getSceneX();
+		int y = localPoint.getSceneY();
+
+		byte[][][] settings = client.getTileSettings();
+		return settings[z][x][y];
+	}
+
+	//If attempting to build a boat, checks whether the tile chosen is a valid water tile
 	public void checkBoatPrerequisites(MenuEntry menuEntry)
 	{
 		LocalPoint localPoint = getTilePlayerFaces();
@@ -1839,6 +1861,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 		buildBoatTimer = BUILD_BOAT_TIMER_START;
 	}
 
+	//Gets the tile directly in front of the player
 	public LocalPoint getTilePlayerFaces()
 	{
 		Player player = client.getLocalPlayer();
@@ -1847,7 +1870,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 		int xLocation = player.getWorldLocation().getX();
 		int yLocation = player.getWorldLocation().getY();
 
-		int direction = RotationTranslator.translateOrientation(orientation);
+		int direction = BoatMaths.translateOrientation(orientation);
 		switch (direction)
 		{
 			default:
@@ -1880,18 +1903,20 @@ public class SailingPlugin extends Plugin implements KeyListener
 				yLocation--;
 		}
 
-		WorldPoint worldPoint = new WorldPoint(xLocation, yLocation, client.getPlane());
+		WorldPoint worldPoint = new WorldPoint(xLocation, yLocation, 0);
 		return LocalPoint.fromWorld(client, worldPoint);
 	}
 
+	//Spawns a boat under player control
 	public void buildBoat()
 	{
 		LocalPoint localPoint = getTilePlayerFaces();
-		if (getTileOverlay(localPoint) != WATER_OVERLAY_ID)
+		if (getTileOverlay(localPoint) != WATER_OVERLAY_ID || (getTileFlag(localPoint) & Constants.TILE_FLAG_BRIDGE) != 0)
 		{
 			sendChatMessage("You may want to build your boat on water. Walk up to and face a water tile and attempt 'Build boat' again.");
 			return;
 		}
+
 		createBoat(localPoint);
 		widgetSetter.setupUnknownTab();
 		currentHealth = getBoatTypeMaxHealth();
@@ -1907,10 +1932,9 @@ public class SailingPlugin extends Plugin implements KeyListener
 
 		shipObject = client.createRuneLiteObject();
 		shipObject.setModel(shipModel0);
-		relativeSailOrientation = 0;
 		absoluteBoatOrientation = 0;
-		sailLength = 1;
-		shipObject.setLocation(localPoint, client.getPlane());
+		sailLength = 0;
+		shipObject.setLocation(localPoint, 0);
 		shipObject.setRadius(220);
 		shipObject.setActive(true);
 		shipObject.setAnimation(modelHandler.boatIdleAnimation);
@@ -1955,86 +1979,65 @@ public class SailingPlugin extends Plugin implements KeyListener
 		}
 	}
 
-	public void updateBoatRotation()
+	//If the tool button is pressed in the Sailing menu, initiates the appropriate action
+	public void useCurrentTool()
 	{
-		if (boatRotationQueue > 0)
+		switch (currentBoatTool)
 		{
-			absoluteBoatOrientation += 256;
-			if (absoluteBoatOrientation == 2048)
-			{
-				absoluteBoatOrientation = 0;
-			}
-
-			shipObject.setOrientation(absoluteBoatOrientation);
-			boatRotationQueue--;
-		}
-
-		if (boatRotationQueue < 0)
-		{
-			absoluteBoatOrientation -= 256;
-			if (absoluteBoatOrientation == -256)
-			{
-				absoluteBoatOrientation = 1792;
-			}
-			shipObject.setOrientation(absoluteBoatOrientation);
-			boatRotationQueue++;
-		}
-	}
-
-	public void updateWindDirection()
-	{
-		windChangeTimer++;
-		if (windChangeTimer >= config.windChangeRate())
-		{
-			int roll = random.nextInt(8) * 256;
-			while (roll == windDirection)
-			{
-				roll = random.nextInt(8) * 256;
-			}
-			windDirection = roll;
-			windChangeTimer = 0;
+			case CANNON:
+				readyCannon();
+				return;
+			case FISHING_ROD:
+				startFishing();
+				return;
+			case HARPOON:
+				sendChatMessage("Sailing isn't real so you can't hunt for seabirds.");
+				return;
+			case NET:
+				sendChatMessage("Sailing isn't real so you can't dredge for minerals.");
+				return;
+			case SPYGLASS:
+				sendChatMessage("Sailing isn't real so you can't spot for treasures.");
+				return;
+			case PLUNDER:
+				sendChatMessage("Sailing isn't real so you can't plunder merchant boats.");
 		}
 	}
 
-	public void updateSailRotation()
+	public void startFishing()
 	{
-		if (sailRotationQueue == 0)
+		if (validFishingTile())
 		{
+			sendChatMessage("You cast your rod and wait for a bite.");
+			fishing = true;
 			return;
 		}
 
-		int change = 45 * sailRotationQueue;
-		relativeSailOrientation += change;
+		sendChatMessage("You need to be over a valid fishing spot to start fishing.");
+	}
 
-		sailRotationQueue = 0;
+	//Checks whether the tile the player's boat is on top of is close enough to a fish object
+	public boolean validFishingTile()
+	{
+		LocalPoint localPoint = shipObject.getLocation();
+		int x = localPoint.getSceneX();
+		int y = localPoint.getSceneY();
+		boolean fishingLocation = false;
 
-		if (relativeSailOrientation > 90)
+		for (RuneLiteObject runeLiteObject : fishObjects)
 		{
-			relativeSailOrientation = 90;
+			LocalPoint fishPoint = runeLiteObject.getLocation();
+			int fishX = fishPoint.getSceneX();
+			int fishY = fishPoint.getSceneY();
+
+			if (x == fishX && y == fishY)
+			{
+				fishingLocation = true;
+				break;
+			}
 		}
 
-		if (relativeSailOrientation < -90)
-		{
-			relativeSailOrientation = -90;
-		}
-
-		switch (relativeSailOrientation)
-		{
-			case -90:
-				shipObject.setModel(shipModelN90);
-				return;
-			case -45:
-				shipObject.setModel(shipModelN45);
-				return;
-			case 0:
-				shipObject.setModel(shipModel0);
-				return;
-			case 45:
-				shipObject.setModel(shipModelP45);
-				return;
-			case 90:
-				shipObject.setModel(shipModelP90);
-		}
+		return fishingLocation;
 	}
 
 	public void readyCannon()
@@ -2069,19 +2072,6 @@ public class SailingPlugin extends Plugin implements KeyListener
 		}
 	}
 
-	public void toggleAnchor()
-	{
-		if (anchorMode)
-		{
-			anchorMode = false;
-			sendChatMessage("You raise the anchor.");
-			return;
-		}
-
-		anchorMode = true;
-		sendChatMessage("You drop the anchor.");
-	}
-
 	public void rotateBoatCW()
 	{
 		if (deathState)
@@ -2089,7 +2079,6 @@ public class SailingPlugin extends Plugin implements KeyListener
 			return;
 		}
 		boatRotationQueue = 1;
-		sailOptionTimer = 20;
 	}
 
 	public void rotateBoatCCW()
@@ -2099,69 +2088,11 @@ public class SailingPlugin extends Plugin implements KeyListener
 			return;
 		}
 		boatRotationQueue = -1;
-		sailOptionTimer = -20;
-	}
-	public void rotateSailCW()
-	{
-		if (deathState)
-		{
-			return;
-		}
-
-		if (sailRotationQueue < 0)
-		{
-			sailRotationQueue = 0;
-		}
-
-		sailRotationQueue += 1;
-
-		if (sailRotationQueue > 4)
-		{
-			sailRotationQueue = 4;
-		}
-
-		if (relativeSailOrientation == 90)
-		{
-			sailErrorTimer = 20;
-			return;
-		}
-
-		sailErrorTimer = 0;
-		sailTimer = 20;
-	}
-
-	public void rotateSailCCW()
-	{
-		if (deathState)
-		{
-			return;
-		}
-
-		if (sailRotationQueue > 0)
-		{
-			sailRotationQueue = 0;
-		}
-
-		sailRotationQueue -= 1;
-
-		if (sailRotationQueue < -4)
-		{
-			sailRotationQueue = -4;
-		}
-
-		if (relativeSailOrientation == -90)
-		{
-			sailErrorTimer = 20;
-			return;
-		}
-
-		sailErrorTimer = 0;
-		sailTimer = -20;
 	}
 
 	public void increaseSailLength()
 	{
-		if (sailLengthQueue < -2)
+		if (sailLengthQueue < 1)
 		{
 			sailLengthQueue = 1;
 			return;
@@ -2172,7 +2103,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 
 	public void decreaseSailLength()
 	{
-		if (sailLengthQueue > 2)
+		if (sailLengthQueue > -1)
 		{
 			sailLengthQueue = -1;
 			return;
@@ -2181,155 +2112,12 @@ public class SailingPlugin extends Plugin implements KeyListener
 		sailLengthQueue--;
 	}
 
-	public void recalculateSpeed()
+	public void setSailLength(int newSailLength)
 	{
-		if (shipObject == null)
-		{
-			return;
-		}
+		sailLengthQueue = 0;
+		sailLength = newSailLength;
 
-		int sailRotationChange;
-		switch (relativeSailOrientation)
-		{
-			case -90:
-				sailRotationChange = -512;
-				break;
-			case -45:
-				sailRotationChange = -256;
-				break;
-			case 0:
-			default:
-				sailRotationChange = 0;
-				break;
-			case 45:
-				sailRotationChange = 256;
-				break;
-			case 90:
-				sailRotationChange = 512;
-		}
-
-		int boatOrientation = RotationTranslator.translateOrientation(absoluteBoatOrientation);
-		absoluteSailOrientation = boatOrientation + sailRotationChange;
-		if (absoluteSailOrientation >= 2048)
-		{
-			absoluteSailOrientation -= 2048;
-		}
-
-		if (absoluteSailOrientation < 0)
-		{
-			absoluteSailOrientation += 2048;
-		}
-
-		int sailDifference = Math.abs(windDirection - absoluteSailOrientation);
-		int sailSpeed;
-		switch (sailDifference)
-		{
-			case 0:
-				sailSpeed = 3;
-				break;
-			case 256:
-			case 1792:
-				sailSpeed = 2;
-				break;
-			case 1536:
-			case 512:
-			default:
-			case 768:
-			case 1280:
-			case 1024:
-				sailSpeed = 1;
-		}
-
-		/*
-		switch (sailDifference)
-		{
-			case 0:
-				switch (config.boatType())
-				{
-					default:
-					case NORMAL:
-					case OAK_OR_WILLOW:
-						sailSpeed = 3;
-						break;
-					case MAPLE_OR_YEW:
-						sailSpeed = 4;
-						break;
-					case MAGIC_OR_REDWOOD:
-						sailSpeed = 5;
-						break;
-				}
-				break;
-			case 256:
-			case 1792:
-				switch (config.boatType())
-				{
-					default:
-					case NORMAL:
-					case OAK_OR_WILLOW:
-						sailSpeed = 2;
-						break;
-					case MAPLE_OR_YEW:
-						sailSpeed = 3;
-						break;
-					case MAGIC_OR_REDWOOD:
-						sailSpeed = 4;
-						break;
-				}
-				break;
-			case 1536:
-			case 512:
-				switch (config.boatType())
-				{
-					default:
-					case NORMAL:
-					case OAK_OR_WILLOW:
-						sailSpeed = 1;
-						break;
-					case MAPLE_OR_YEW:
-						sailSpeed = 2;
-						break;
-					case MAGIC_OR_REDWOOD:
-						sailSpeed = 3;
-						break;
-				}
-				break;
-			default:
-			case 768:
-			case 1280:
-			case 1024:
-				sailSpeed = 1;
-		}
-		 */
-
-		int boatDifference = Math.abs(windDirection - boatOrientation);
-		int boatDirectionSpeed = 0;
-		if (boatDifference == 0)
-		{
-			boatDirectionSpeed = 1;
-		}
-
-		if (boatDifference == 1024)
-		{
-			boatDirectionSpeed = -1;
-		}
-
-		int newSpeed = sailSpeed + boatDirectionSpeed;
-		if (newSpeed < 1)
-		{
-			newSpeed = 1;
-		}
-
-		if (anchorMode)
-		{
-			speed = 0;
-			return;
-		}
-
-		if (speed > newSpeed)
-		{
-			boatMomentum = 30;
-		}
-		speed = newSpeed;
+		anchorMode = sailLength == 0;
 	}
 
 	public int getXMovement(int orientation)
@@ -2372,6 +2160,12 @@ public class SailingPlugin extends Plugin implements KeyListener
 		return 0;
 	}
 
+	private void sendChatMessage(String chatMessage)
+	{
+		final String message = new ChatMessageBuilder().append(ChatColorType.HIGHLIGHT).append(chatMessage).build();
+		chatMessageManager.queue(QueuedMessage.builder().type(ChatMessageType.GAMEMESSAGE).runeLiteFormattedMessage(message).build());
+	}
+
 	@Provides
 	SailingConfig provideConfig(ConfigManager configManager)
 	{
@@ -2380,6 +2174,9 @@ public class SailingPlugin extends Plugin implements KeyListener
 
 	@Override
 	public void keyTyped(KeyEvent e) {}
+
+	@Override
+	public void keyReleased(KeyEvent e) {}
 
 	@Override
 	public void keyPressed(KeyEvent e)
@@ -2396,47 +2193,20 @@ public class SailingPlugin extends Plugin implements KeyListener
 				rotateBoatCW();
 			}
 
-			if (e.getKeyChar() == config.sailLeftHotkey().charAt(0))
-			{
-				rotateSailCCW();
-			}
-
-			if (e.getKeyChar() == config.sailRightHotkey().charAt(0))
-			{
-				rotateSailCW();
-			}
-
-			if (e.getKeyChar() == '5')
+			if (e.getKeyChar() == config.sailIncreaseHotkey().charAt(0))
 			{
 				increaseSailLength();
 			}
 
-			if (e.getKeyChar() == '2')
+			if (e.getKeyChar() == config.sailDecreaseHotkey().charAt(0))
 			{
 				decreaseSailLength();
 			}
 
-			if (e.getKeyCode() == KeyEvent.VK_SHIFT)
-			{
-				toggleAnchor();
-			}
-
 			if (e.getKeyCode() == KeyEvent.VK_SPACE)
 			{
-				readyCannon();
+				useCurrentTool();
 			}
 		}
-	}
-
-	@Override
-	public void keyReleased(KeyEvent e)
-	{
-
-	}
-
-	private void sendChatMessage(String chatMessage)
-	{
-		final String message = new ChatMessageBuilder().append(ChatColorType.HIGHLIGHT).append(chatMessage).build();
-		chatMessageManager.queue(QueuedMessage.builder().type(ChatMessageType.GAMEMESSAGE).runeLiteFormattedMessage(message).build());
 	}
 }

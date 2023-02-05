@@ -14,6 +14,7 @@ public class ModelHandler
     private Client client;
 
     public Model shipModel0;
+    public Model shipModel0Half;
     public Model shipModelP45;
     public Model shipModelP90;
     public Model shipModelN45;
@@ -132,7 +133,6 @@ public class ModelHandler
 
     public void loadModels()
     {
-        //x = length, y = height, z = width/thickness
         ModelData shipBoat0 = client.loadModelData(SHIP_MODEL).cloneVertices().scale(80, 100, 70).rotateY270Ccw();
         ModelData shipSail0 = loadModel(SAIL_MODEL, ModelSource.sail0);
         ModelData modelData0 = client.mergeModels(shipBoat0, shipSail0);

@@ -15,9 +15,8 @@ public class TabIconManager
     @Inject
     private Client client;
 
-
     private final BufferedImage anchorTabImage = ImageUtil.loadImageResource(getClass(), "/Tab_Anchor_Icon.png");
-    private final int ANCHOR_SPRITE_ID = SpriteID.DEADMAN_BANK_KEYS_3;
+    private final int ANCHOR_SPRITE_ID = SpriteID.EMOTE_PENGUIN_SHIVER;
 
     public void setFixedSailingTab()
     {

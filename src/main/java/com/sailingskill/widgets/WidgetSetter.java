@@ -12,10 +12,10 @@ public class WidgetSetter
     private BoatWidgetManager boatWidgetManager;
 
     @Inject
-    private SailWidgetManager sailWidgetManager;
+    private MiscWidgetManager miscWidgetManager;
 
     @Inject
-    private MiscWidgetManager miscWidgetManager;
+    private ToolsWidgetManager toolsWidgetManager;
 
     @Inject
     private TabIconManager tabIconManager;
@@ -103,7 +103,7 @@ public class WidgetSetter
 
         boatWidgetManager.setupManager(widget);
         miscWidgetManager.setupManager(widget);
-        sailWidgetManager.setupManager(widget);
+        toolsWidgetManager.setupManager(widget);
         tabIconManager.setAnchorSpriteOverride();
     }
 
