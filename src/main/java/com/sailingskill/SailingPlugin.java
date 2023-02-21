@@ -63,9 +63,6 @@ public class SailingPlugin extends Plugin implements KeyListener
 	private OverlayManager overlayManager;
 
 	@Inject
-	private WindOverlay windOverlay;
-
-	@Inject
 	private CannonOverlay cannonOverlay;
 
 	@Inject
@@ -151,7 +148,6 @@ public class SailingPlugin extends Plugin implements KeyListener
 	@Override
 	protected void startUp() throws Exception
 	{
-		overlayManager.add(windOverlay);
 		overlayManager.add(cannonOverlay);
 		overlayManager.add(guideOverlay);
 		overlayManager.add(hitsplatOverlay);
@@ -163,7 +159,6 @@ public class SailingPlugin extends Plugin implements KeyListener
 	@Override
 	protected void shutDown() throws Exception
 	{
-		overlayManager.remove(windOverlay);
 		overlayManager.remove(cannonOverlay);
 		overlayManager.remove(guideOverlay);
 		overlayManager.remove(hitsplatOverlay);
@@ -582,8 +577,8 @@ public class SailingPlugin extends Plugin implements KeyListener
 			updateBoatOrientation();
 			updateSailLength();
 			recalculateSpeed();
-			updateWindDirection();
-			updateBoatModel();
+			//updateWindDirection();
+			//updateBoatModel();
 			updateCannonRange();
 			fireCannon();
 			checkXPDrop();
@@ -729,6 +724,7 @@ public class SailingPlugin extends Plugin implements KeyListener
 			return;
 		}
 
+		/*
 		int boatOrientation = BoatMaths.translateOrientation(absoluteBoatOrientation);
 		int boatDifference = Math.abs(windDirection - boatOrientation);
 
@@ -758,6 +754,10 @@ public class SailingPlugin extends Plugin implements KeyListener
 		{
 			newSpeed = 1;
 		}
+
+		 */
+
+		int newSpeed = sailLength;
 
 		if (speed > newSpeed)
 		{
